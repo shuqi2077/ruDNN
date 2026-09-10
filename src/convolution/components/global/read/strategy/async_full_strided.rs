@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::layout::Layout;
 use ruda_kernel::library::tensor::layout::LayoutExpand;
@@ -25,7 +25,7 @@ use crate::convolution::components::global::{
     read::strategy::async_copy::{ASYNC_COPY_WIDTH, async_copy_from},
 };
 
-#[derive(CubeType, Clone, Copy)]
+#[derive(RudaType, Clone, Copy)]
 /// Loads the content of all the stage using all planes,
 /// keeping the original layout, making each tile strided
 pub struct AsyncFullStridedLoading {}
@@ -65,7 +65,7 @@ impl LoadMaxRoundPlaneCount for AsyncFullStridedLoading {
     }
 }
 
-#[cube]
+#[ruda]
 impl FullLoadingStrategy<RuntimeArgs> for AsyncFullStridedLoading {
     type TilingLayout = StridedTilingLayout;
     type SyncStrategy = AsyncCopy;
@@ -98,20 +98,20 @@ impl FullLoadingStrategy<RuntimeArgs> for AsyncFullStridedLoading {
     }
 }
 
-#[derive(CubeType, Clone)]
+#[derive(RudaType, Clone)]
 pub struct AsyncFullStridedJob {
     unit_position_base: u32,
     runtime_args: RuntimeArgs,
 
-    #[cube(comptime)]
+    #[ruda(comptime)]
     num_tasks_per_unit: u32,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     unit_count: u32,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     copy_vector_size: u32,
 }
 
-#[cube]
+#[ruda]
 impl<EG: Numeric, NG: Size, ES: Numeric, NS: Size>
     LoadingJob<EG, NG, ES, NS, StridedTilingLayout, AsyncCopy> for AsyncFullStridedJob
 {

@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use crate::convolution::components::{ConvolutionProblem, Dimensionality};
 use crate::convolution::routines::Routine;
 use crate::convolution::{components::ConvSetupError, kernels::forward::selector::launch_kernel_concrete};

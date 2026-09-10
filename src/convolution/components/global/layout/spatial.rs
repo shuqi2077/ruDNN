@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::library::tensor::layout::Coordinates;
 use ruda_kernel::library::tensor::layout::Coords1d;
 use ruda_kernel::library::tensor::layout::Layout;
@@ -13,14 +13,14 @@ use enumset::{EnumSet, EnumSetType};
 
 use crate::convolution::components::Dimensionality;
 
-#[derive(CubeType, CubeLaunch, Clone)]
+#[derive(RudaType, RudaLaunch, Clone)]
 pub struct NhwcCoords {
     pub batch: u32,
     pub spatial: Sequence<i32>,
     pub channel: u32,
 }
 
-#[cube]
+#[ruda]
 impl IntoDyn for NhwcCoords {
     fn into_dyn(self) -> Sequence<i32> {
         let mut seq = Sequence::new();
@@ -35,7 +35,7 @@ impl IntoDyn for NhwcCoords {
 
 type NhwcTuple = (u32, Sequence<i32>, u32);
 
-#[cube]
+#[ruda]
 impl NhwcCoords {
     pub fn new(batch: u32, spatial: Sequence<i32>, channel: u32) -> Self {
         NhwcCoords {
@@ -54,7 +54,7 @@ impl NhwcCoords {
     }
 }
 
-#[cube]
+#[ruda]
 impl Coordinates for NhwcCoords {
     fn add(this: Self, other: Self) -> Self {
         let tuple = NhwcTuple::add(this.into_tuple(), other.into_tuple());
@@ -95,7 +95,7 @@ pub enum NhwcCheck {
 
 /// Layout for a spatial (i.e. NHWC) tensor. Bounds check only applies to spatial dimensions, not
 /// channel or batch (because these are implicitly checked in the layouts used with spatial tensors).
-#[derive(CubeType, Clone)]
+#[derive(RudaType, Clone)]
 pub struct NhwcLayout {
     /// Stride for N
     pub stride_batch: usize,
@@ -111,13 +111,13 @@ pub struct NhwcLayout {
     /// Shape of C
     pub shape_channel: u32,
 
-    #[cube(comptime)]
+    #[ruda(comptime)]
     pub vector_size: VectorSize,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     pub checks: EnumSet<NhwcCheck>,
 }
 
-#[cube]
+#[ruda]
 impl NhwcLayout {
     pub fn new<E: Numeric, N: Size, IO: Clone>(
         tensor: VirtualTensor<E, N, IO>,
@@ -153,7 +153,7 @@ impl NhwcLayout {
     }
 }
 
-#[cube]
+#[ruda]
 impl Layout for NhwcLayout {
     type Coordinates = NhwcCoords;
     type SourceCoordinates = Coords1d;
@@ -211,8 +211,8 @@ impl Layout for NhwcLayout {
     }
 }
 
-#[cube]
-pub(crate) fn cast_seq<From: CubePrimitive, To: CubePrimitive>(
+#[ruda]
+pub(crate) fn cast_seq<From: RudaPrimitive, To: RudaPrimitive>(
     seq: Sequence<From>,
 ) -> Sequence<To> {
     let num_elems = seq.len();
@@ -241,7 +241,7 @@ impl NhwcLayoutLaunch {
     }
 }
 
-#[derive_cube_comptime]
+#[derive_ruda_comptime]
 pub struct NhwcLayoutCompilationArg {
     pub spatial_rank: usize,
     pub checks: EnumSet<NhwcCheck>,
@@ -288,7 +288,7 @@ impl ViewLayoutLaunchArg for NhwcLayout {
         arg: &Self::CompilationArg,
         ty: Type,
         builder: &mut KernelBuilder,
-    ) -> <Self as CubeType>::ExpandType {
+    ) -> <Self as RudaType>::ExpandType {
         let strides_comp_arg = (0..arg.spatial_rank).map(|_| ()).collect();
         let shape_comp_arg = (0..arg.spatial_rank).map(|_| ()).collect();
         NhwcLayoutExpand {

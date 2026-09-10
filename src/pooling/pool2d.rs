@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use core::hash::Hash;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::FastDivmod;
@@ -13,16 +13,16 @@ use ruda_kernel::tensor::RudaTensor;
 
 pub trait Pool2dDirectStrategyFamily: Send + Sync + 'static {
     type Indices<I: Int, N: Size>: LaunchArg;
-    type Config: CubeType + Clone + Send + Sync + core::fmt::Debug + Hash + core::cmp::Eq;
+    type Config: RudaType + Clone + Send + Sync + core::fmt::Debug + Hash + core::cmp::Eq;
     type Pool2d<T: Numeric, I: Int, N: Size>: Pool2dDirectStrategy<T, I, N, Config = Self::Config, Indices = Self::Indices<I, N>>;
 }
 
 pub(super) type Position = (usize, usize, usize, usize);
 
-#[cube]
+#[ruda]
 pub trait Pool2dDirectStrategy<T: Numeric, I: Int, N: Size>: Send + Sync + 'static {
-    type Accumulator: CubeType;
-    type Config: CubeType + Clone + Send + Sync + core::fmt::Debug + Hash + core::cmp::Eq;
+    type Accumulator: RudaType;
+    type Config: RudaType + Clone + Send + Sync + core::fmt::Debug + Hash + core::cmp::Eq;
 
     type Indices: LaunchArg;
 
@@ -54,7 +54,7 @@ pub trait Pool2dDirectStrategy<T: Numeric, I: Int, N: Size>: Send + Sync + 'stat
     );
 }
 
-#[derive(CubeLaunch, CubeType)]
+#[derive(RudaLaunch, RudaType)]
 pub struct Pool2dDirectArgs {
     pub strides_0: u32,
     pub strides_1: u32,
@@ -64,7 +64,7 @@ pub struct Pool2dDirectArgs {
     pub padding_1: u32,
 }
 
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 pub fn pool2d_direct<E: Numeric, I: Int, N: Size, S: Pool2dDirectStrategyFamily>(
     input: &Tensor<Vector<E, N>>,
     output: &mut View<Vector<E, N>, Position, ReadWrite>,

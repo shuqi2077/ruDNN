@@ -68,7 +68,7 @@ pub fn dgrad_gemm_simple_tma<R: Runtime, const N: usize>(
 }
 
 /// Perform a convolution backwards data pass using the implicit GEMM (im2col) algorithm, using
-/// cubecl tiling matmul components.
+/// ruda tiling matmul components.
 ///
 /// * `input` - The input feature map
 /// * `out_grad` - The output gradients

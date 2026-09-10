@@ -1,6 +1,6 @@
 use super::bilinear::bilinear_coordinate;
-use ruda_kernel::dsl as cubecl;
-use ruda_kernel::dsl::calculate_cube_count_elemwise;
+use ruda_kernel::dsl as kernel_dsl;
+use ruda_kernel::dsl::calculate_ruda_count_elemwise;
 use ruda_kernel::dsl::num_traits::{One, Zero};
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::FastDivmod;
@@ -9,7 +9,7 @@ use ruda_kernel::library::tensor::layout::*;
 use ruda_kernel::tensor::RudaTensor;
 use ruda_kernel::tensor::layout::{address_type, linear_layout, max_vector_size_many, shape_divmod};
 
-#[cube]
+#[ruda]
 fn contributing_range(
     input_index: usize,
     input_size: usize,
@@ -43,7 +43,7 @@ fn contributing_range(
     (start, left)
 }
 
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 fn interpolate_bilinear_backward_kernel<F: Float, N: Size>(
     grad: &Tensor<Vector<F, N>>,
     output: &mut Tensor<Vector<F, N>>,
@@ -120,13 +120,13 @@ pub fn interpolate_bilinear_backward_launch<R: Runtime>(
     let out_shape = shape_divmod(&output);
     let out_layout = linear_layout(&output, vector_size);
     let working_units = output.meta.num_elements() / vector_size as usize;
-    let cube_dim = CubeDim::new(out_grad.client.properties(), working_units);
-    let cube_count = calculate_cube_count_elemwise(&out_grad.client, working_units, cube_dim);
+    let ruda_dim = RudaDim::new(out_grad.client.properties(), working_units);
+    let ruda_count = calculate_ruda_count_elemwise(&out_grad.client, working_units, ruda_dim);
 
     interpolate_bilinear_backward_kernel::launch(
         &output.client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         address_type!(out_grad, output),
         vector_size,
         out_grad.into_tensor_arg(),

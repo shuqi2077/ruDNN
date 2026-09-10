@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::{Runtime, prelude::*};
 use ruda_kernel::tensor::{RudaTensor, allocation::empty_device_dtype, contiguous::into_contiguous};
 use ruda_core::tensor::{Shape, TensorMetadata};
@@ -6,12 +6,12 @@ use super::common::{SHARED_ALPHA_CAPACITY, empty_input_nll, finalize_nll, l_prim
 
 /// CTC alpha-recursion kernel.
 ///
-/// Each cube handles one batch element. `cube_dim.x` is fixed at launch time
+/// Each ruda handles one batch element. `ruda_dim.x` is fixed at launch time
 /// (capped to the runtime's hardware limit); each thread strides over the `s`
 /// positions of the modified label sequence `l'` (length `2 * target_len + 1`),
 /// covering arbitrary target lengths up to `SHARED_ALPHA_CAPACITY`. `alpha` is
 /// kept in shared memory and the time loop runs sequentially inside the kernel,
-/// using two `sync_cube()` barriers per iteration: one to fence reads of
+/// using two `sync_ruda()` barriers per iteration: one to fence reads of
 /// `alpha[t-1]` before any thread writes `alpha[t]`, one to publish the new row
 /// before the next iteration. This collapses what would otherwise be roughly
 /// `40 * T` host-side dispatches into a single kernel launch.
@@ -21,9 +21,9 @@ use super::common::{SHARED_ALPHA_CAPACITY, empty_input_nll, finalize_nll, l_prim
 /// and f16's range caps at ~65504. The recurrence treats values below a
 /// threshold (`-1.0e4`) as unreachable. If an entire sequence has no valid
 /// alignment (e.g. `target_length > input_length`), the kernel synthesizes
-/// `+inf` in the output so downstream `zero_infinity` masking in `burn-nn`
+/// `+inf` in the output so downstream `zero_infinity` masking in `ruda-nn`
 /// can detect it via `is_inf`.
-#[cube(launch)]
+#[ruda(launch)]
 fn ctc_loss_kernel<F: Float, I: Numeric>(
     log_probs: &Tensor<F>,      // [T, N, C]
     targets: &Tensor<I>,        // [N, S_max]
@@ -34,8 +34,8 @@ fn ctc_loss_kernel<F: Float, I: Numeric>(
     #[comptime] alpha_capacity: u32,
     #[define(F, I)] _dtypes: [StorageType; 2],
 ) {
-    let n = CUBE_POS_X as usize;
-    let cube_dim = CUBE_DIM_X as usize;
+    let n = RUDA_POS_X as usize;
+    let ruda_dim = RUDA_DIM_X as usize;
     let alpha_cap = alpha_capacity as usize;
     let blank_u = blank as usize;
 
@@ -88,9 +88,9 @@ fn ctc_loss_kernel<F: Float, I: Numeric>(
             init = log_probs[n * lp_n + l1 * lp_c];
         }
         alpha[s] = init;
-        s += cube_dim;
+        s += ruda_dim;
     }
-    sync_cube();
+    sync_ruda();
 
     // Sequential time loop. Each iteration re-strides over s positions to
     // compute alpha[t, s] from alpha[t-1, *] and writes back to the same
@@ -127,17 +127,17 @@ fn ctc_loss_kernel<F: Float, I: Numeric>(
                 unreachable_threshold,
                 one,
             );
-            s += cube_dim;
+            s += ruda_dim;
         }
-        sync_cube();
+        sync_ruda();
 
         // Second pass: copy scratch back into the active alpha slots.
         let mut s = UNIT_POS_X as usize;
         while s < l_prime_len {
             alpha[s] = alpha[alpha_cap + s];
-            s += cube_dim;
+            s += ruda_dim;
         }
-        sync_cube();
+        sync_ruda();
     }
 
     // Reduce: only thread 0 writes the output for this batch element.
@@ -160,7 +160,7 @@ fn ctc_loss_kernel<F: Float, I: Numeric>(
     }
 }
 
-/// Fused CTC loss for burn-cubecl. Single kernel launch covers the entire
+/// Fused CTC loss for ruda-tensor-device. Single kernel launch covers the entire
 /// alpha recursion across all timesteps.
 ///
 /// Panics if `2 * max_target_len + 1` exceeds `SHARED_ALPHA_CAPACITY` (8192).
@@ -193,10 +193,10 @@ pub fn ctc_loss<R: Runtime>(
         SHARED_ALPHA_CAPACITY,
     );
 
-    // Pick a thread count that fits the runtime's per-cube limit. We don't
+    // Pick a thread count that fits the runtime's per-ruda limit. We don't
     // need one thread per s position - threads stride over s.
-    let hw_max = log_probs.client.properties().hardware.max_cube_dim.0;
-    let cube_dim_x = (max_l_prime as u32).min(hw_max).min(256);
+    let hw_max = log_probs.client.properties().hardware.max_ruda_dim.0;
+    let ruda_dim_x = (max_l_prime as u32).min(hw_max).min(256);
 
     let client = log_probs.client.clone();
     let device = log_probs.device.clone();
@@ -204,8 +204,8 @@ pub fn ctc_loss<R: Runtime>(
     let i_dtype = targets.dtype;
     let output = empty_device_dtype::<R>(client.clone(), device, Shape::new([batch_size]), f_dtype);
 
-    let cube_count = CubeCount::Static(batch_size as u32, 1, 1);
-    let cube_dim = CubeDim::new_1d(cube_dim_x);
+    let ruda_count = RudaCount::Static(batch_size as u32, 1, 1);
+    let ruda_dim = RudaDim::new_1d(ruda_dim_x);
 
     // Pass the actual max_l_prime (not the static capacity) so shared memory
     // is sized to what we need. Metal limits threadgroup memory to 32 KB;
@@ -215,8 +215,8 @@ pub fn ctc_loss<R: Runtime>(
     // are stable within a dataset.
     ctc_loss_kernel::launch::<R>(
         &client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         log_probs.into_tensor_arg(),
         targets.into_tensor_arg(),
         input_lengths.into_tensor_arg(),
@@ -229,4 +229,3 @@ pub fn ctc_loss<R: Runtime>(
 
     output
 }
-

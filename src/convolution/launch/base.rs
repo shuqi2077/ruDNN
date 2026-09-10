@@ -4,7 +4,7 @@
 //! `Strategy` (`Specific` / `Forced`) into a matmul `BlueprintStrategy`, and
 //! dispatches to the per-operation helper based on `ConvolutionInputs`.
 
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::Runtime;
 use ruda_kernel::dsl::client::ComputeClient;
 use rublas::kernel_ir::{

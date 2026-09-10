@@ -1,6 +1,6 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::{
-    dsl::{calculate_cube_count_elemwise, prelude::*},
+    dsl::{calculate_ruda_count_elemwise, prelude::*},
     library::FastDivmod,
     tensor::{RudaTensor, allocation::empty_device_dtype, layout::address_type},
 };
@@ -8,14 +8,14 @@ use ruda_core::tensor::{DType, Shape, spatial::GridSampleOptions};
 use crate::interpolation::bicubic::cubic_coefficient;
 use super::base::{PaddingMode, fetch_with_border, reflect_coord};
 
-#[cube]
+#[ruda]
 fn coordinate<A: Float>(value: A, size: u32, #[comptime] align: bool) -> A {
     let value = select(value != value, A::new(-1.0), value);
     if align { (value + A::new(1.0)) * A::cast_from(size - 1) / A::new(2.0) }
     else { (value + A::new(1.0)) * A::cast_from(size) / A::new(2.0) - A::new(0.5) }
 }
 
-#[cube]
+#[ruda]
 fn bounded<A: Float>(value: A, size: u32, #[comptime] padding: PaddingMode, #[comptime] align: bool) -> A {
     match padding {
         PaddingMode::Zeros => value,
@@ -24,7 +24,7 @@ fn bounded<A: Float>(value: A, size: u32, #[comptime] padding: PaddingMode, #[co
     }
 }
 
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 fn bicubic_kernel<F: Float, A: Float>(
     input: &Tensor<F>, grid: &Tensor<F>, output: &mut Tensor<F>,
     spatial: Sequence<FastDivmod<usize>>,
@@ -94,10 +94,10 @@ pub(super) fn launch<R: Runtime>(input: RudaTensor<R>, grid: RudaTensor<R>, opti
     let count = batch * out_h * out_w;
     let mut spatial = SequenceArg::new();
     for size in [batch, out_h, out_w] { spatial.push(size); }
-    let cube_dim = CubeDim::new(input.client.properties(), count);
-    let cube_count = calculate_cube_count_elemwise(&input.client, count, cube_dim);
+    let ruda_dim = RudaDim::new(input.client.properties(), count);
+    let ruda_count = calculate_ruda_count_elemwise(&input.client, count, ruda_dim);
     let dtype = input.dtype;
-    bicubic_kernel::launch(&output.client, cube_count, cube_dim, address_type!(input, grid, output),
+    bicubic_kernel::launch(&output.client, ruda_count, ruda_dim, address_type!(input, grid, output),
         input.into_tensor_arg(), grid.into_tensor_arg(), output.clone().into_tensor_arg(),
         spatial, options.align_corners, options.padding_mode.into(), dtype.into(), accumulator.into());
     output

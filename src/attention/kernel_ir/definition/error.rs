@@ -1,6 +1,6 @@
-use ruda_kernel::dsl as cubecl;
-use ruda_kernel::dsl::CubeCount;
-use ruda_kernel::dsl::CubeDim;
+use ruda_kernel::dsl as kernel_dsl;
+use ruda_kernel::dsl::RudaCount;
+use ruda_kernel::dsl::RudaDim;
 use ruda_kernel::dsl::VectorizationError;
 use ruda_kernel::dsl::server::LaunchError;
 use rublas::kernel_ir::definition::MatmulAvailabilityError;
@@ -24,11 +24,11 @@ pub enum AttentionSetupError {
 
 /// A specific feature required for attention is not available in the current runtime or hardware.
 pub enum AttentionAvailabilityError {
-    /// The requested cube count exceeds what the runtime or hardware supports.
-    CubeCountTooBig(CubeCount),
+    /// The requested ruda count exceeds what the runtime or hardware supports.
+    RudaCountTooBig(RudaCount),
 
-    /// The requested cube dimensions are too large for the current runtime or hardware.
-    CubeDimTooBig(CubeDim),
+    /// The requested ruda dimensions are too large for the current runtime or hardware.
+    RudaDimTooBig(RudaDim),
 
     /// The required matmul instruction is not supported for the given element types and tile size.
     MatmulInstructionUnavailable(MatmulAvailabilityError),
@@ -93,11 +93,11 @@ impl Debug for AttentionSetupError {
 impl Debug for AttentionAvailabilityError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AttentionAvailabilityError::CubeCountTooBig(count) => {
-                writeln!(f, "Cube count too big {count:?}")
+            AttentionAvailabilityError::RudaCountTooBig(count) => {
+                writeln!(f, "Ruda count too big {count:?}")
             }
-            AttentionAvailabilityError::CubeDimTooBig(dim) => {
-                writeln!(f, "Cube dim too big {dim:?}")
+            AttentionAvailabilityError::RudaDimTooBig(dim) => {
+                writeln!(f, "Ruda dim too big {dim:?}")
             }
             AttentionAvailabilityError::MatmulInstructionUnavailable(error) => {
                 writeln!(f, "Matmul is not supported: {error:?}",)

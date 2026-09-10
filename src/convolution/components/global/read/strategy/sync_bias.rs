@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::ir::DeviceProperties;
 use ruda_kernel::dsl::prelude::*;
 use rublas::kernel_ir::{
@@ -24,7 +24,7 @@ use crate::convolution::components::stage::{
     reader::BiasTilingLayout,
 };
 
-#[derive(CubeType, Clone, Copy)]
+#[derive(RudaType, Clone, Copy)]
 /// Loads the content of all tiles in the stage using all planes.
 /// Unit with pos X loads vectors with indices X, X + NUM_UNITS, X + 2 * NUM_UNITS, ...
 pub struct SyncBiasLoading {}
@@ -63,7 +63,7 @@ impl LoadMaxRoundPlaneCount for SyncBiasLoading {
     }
 }
 
-#[cube]
+#[ruda]
 impl<RC: RuntimeConfig> FullLoadingStrategy<RC> for SyncBiasLoading {
     type TilingLayout = NoTilingLayout;
     type SyncStrategy = Synchronous;
@@ -100,21 +100,21 @@ impl<RC: RuntimeConfig> FullLoadingStrategy<RC> for SyncBiasLoading {
     }
 }
 
-#[derive(CubeType, Clone, Copy)]
+#[derive(RudaType, Clone, Copy)]
 pub struct SyncBiasJob {
     unit_position_base: u32,
 
-    #[cube(comptime)]
+    #[ruda(comptime)]
     num_tasks_per_unit: u32,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     jump_length: u32,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     balanced_workload: bool,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     num_stage_elements: u32,
 }
 
-#[cube]
+#[ruda]
 impl<EG: Numeric, NG: Size, ES: Numeric, NS: Size>
     LoadingJob<EG, NG, ES, NS, NoTilingLayout, Synchronous> for SyncBiasJob
 {
@@ -145,7 +145,7 @@ impl<EG: Numeric, NG: Size, ES: Numeric, NS: Size>
     }
 }
 
-#[cube]
+#[ruda]
 pub(crate) fn load_and_store_vector<EG: Numeric, NG: Size, ES: Numeric, NS: Size>(
     unit_position: u32,
     global_iter: &GlobalIterator<Vector<EG, NG>>,

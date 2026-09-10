@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use {ruda_core::tensor::DType};
 use {ruda_kernel::dsl::AutotuneKey};
 use {serde::Deserialize, serde::Serialize};

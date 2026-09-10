@@ -5,7 +5,7 @@ use super::*;
 // ============================================================================
 //
 // `ActivationOps` does not currently expose a `softmax` hook, so
-// `burn_tensor::activation::softmax` falls back to a 5-op decomposition
+// `ruda_tensor::activation::softmax` falls back to a 5-op decomposition
 // (`max_dim`/`sub`/`exp`/`sum_dim`/`div`). This module provides a fused
 // alternative users can opt into directly.
 
@@ -319,4 +319,3 @@ softmax_last_dtype!(
     DType::BF16,
     softmax_row_bf16
 );
-

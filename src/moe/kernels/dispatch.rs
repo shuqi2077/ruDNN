@@ -1,14 +1,14 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn clear_counts(counts: &mut Array<u32>) {
     if ABSOLUTE_POS < counts.len() {
         counts[ABSOLUTE_POS] = 0;
     }
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn count_routes(
     indices: &Array<u32>,
     counts: &mut Array<Atomic<u32>>,
@@ -21,7 +21,7 @@ pub(crate) fn count_routes(
     ranks[slot] = counts[indices[slot] as usize].fetch_add(1u32);
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn prefix(counts: &Array<u32>, offsets: &mut Array<u32>) {
     if ABSOLUTE_POS != 0 {
         terminate!();
@@ -36,7 +36,7 @@ pub(crate) fn prefix(counts: &Array<u32>, offsets: &mut Array<u32>) {
     }
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn scatter_routes(
     indices: &Array<u32>,
     ranks: &Array<u32>,
@@ -56,7 +56,7 @@ pub(crate) fn scatter_routes(
     row_experts[row as usize] = expert;
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn gather<F: Float>(
     input: &Array<F>,
     sorted_slots: &Array<u32>,
@@ -74,7 +74,7 @@ pub(crate) fn gather<F: Float>(
     output[position] = input[token * hidden as usize + position % hidden as usize];
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn combine<F: Float, W: Float>(
     expert_output: &Array<F>,
     weights: &Array<W>,

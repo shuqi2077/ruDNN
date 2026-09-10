@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
 use crate::attention::kernel_ir::{
@@ -10,13 +10,13 @@ use crate::attention::kernel_ir::{
     definition::AttentionPartitionSize,
 };
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 /// Contains all seq_q·head_dim materialized tiles at once because they are reused extensively
 pub struct QueryPartition<L: Numeric> {
     sequence: Sequence<Query<L>>,
 }
 
-#[cube]
+#[ruda]
 impl<L: Numeric> QueryPartition<L> {
     pub fn new(
         #[comptime] partition_size: AttentionPartitionSize,
@@ -51,12 +51,12 @@ impl<L: Numeric> QueryPartition<L> {
     }
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct KeyPartition<R: Numeric> {
     sequence: Sequence<Key<R>>,
 }
 
-#[cube]
+#[ruda]
 impl<R: Numeric> KeyPartition<R> {
     pub fn new(#[comptime] matmul: AttentionTileMatmul) -> KeyPartition<R> {
         let mut keys = Sequence::new();
@@ -73,12 +73,12 @@ impl<R: Numeric> KeyPartition<R> {
     }
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct ValuePartition<R: Numeric> {
     sequence: Sequence<Value<R>>,
 }
 
-#[cube]
+#[ruda]
 impl<R: Numeric> ValuePartition<R> {
     pub fn new(#[comptime] matmul: AttentionTileMatmul) -> ValuePartition<R> {
         let mut values = Sequence::new();

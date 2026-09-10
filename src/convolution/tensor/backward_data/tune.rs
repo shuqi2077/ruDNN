@@ -3,7 +3,7 @@ use {ruda_core::tensor::Shape};
 use {ruda_kernel::dsl::ir::StorageType, ruda_kernel::dsl::tune::LocalTuner, ruda_kernel::dsl::tune::Tunable, ruda_kernel::dsl::tune::TunableSet, ruda_kernel::dsl::tune::anchor};
 use {crate::convolution::AcceleratedTileKind};
 
-use {crate::convolution::tensor::tune_key::ConvTuneKey, ruda_kernel::dsl::Runtime, ruda_kernel::dsl::CubeTuneId, crate::convolution::tensor::ConvAutotuneKey, crate::convolution::tensor::backward_data::fallback::conv_data_backward_fallback, crate::convolution::tensor::backward_data::implicit_gemm::*, ruda_kernel::tensor::RudaTensor};
+use {crate::convolution::tensor::tune_key::ConvTuneKey, ruda_kernel::dsl::Runtime, ruda_kernel::dsl::RudaTuneId, crate::convolution::tensor::ConvAutotuneKey, crate::convolution::tensor::backward_data::fallback::conv_data_backward_fallback, crate::convolution::tensor::backward_data::implicit_gemm::*, ruda_kernel::tensor::RudaTensor};
 
 /// Executes autotune on conv2d operations
 pub fn dgrad_autotune<R: Runtime, const N: usize>(
@@ -14,10 +14,10 @@ pub fn dgrad_autotune<R: Runtime, const N: usize>(
 ) -> RudaTensor<R> {
     let client = out_grad.client.clone();
 
-    static TUNER: LocalTuner<ConvTuneKey, CubeTuneId> = LocalTuner::new("burn_cubecl::kernel::conv::backward_data::tune::strict_f32_v1");
+    static TUNER: LocalTuner<ConvTuneKey, RudaTuneId> = LocalTuner::new("ruda_tensor_device::kernel::conv::backward_data::tune::strict_f32_v1");
 
     // Note: TMA isn't currently implemented properly, and will always error.
-    // It's kept here so it gets automatically enabled as soon as cubek updates.
+    // It's kept here so it gets automatically enabled as soon as the convolution kernels update.
     // No CMMA for TMA because swizzling will be mandatory for good performance on dgrad.
     let tunables = TUNER.init(|| {
         TunableSet::new(create_key::<R, N>, create_wgrad_input::<R, N>)
@@ -60,7 +60,7 @@ pub fn dgrad_autotune<R: Runtime, const N: usize>(
     });
 
     TUNER.execute(
-        &CubeTuneId::new(&out_grad.client, &out_grad.device),
+        &RudaTuneId::new(&out_grad.client, &out_grad.device),
         &client,
         tunables,
         (out_grad, weights, input_shape, options),

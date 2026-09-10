@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::FastDivmod;
 use ruda_kernel::library::tensor::layout::Layout;
@@ -14,7 +14,7 @@ use crate::convolution::components::{
 
 /// Maps a 4D weight tensor of shape `(out_c, (k_h, k_w, in_c))` to a col-major 2D matmul tile with
 /// shape `(n, k)`
-#[derive(CubeType, CubeLaunch, Clone)]
+#[derive(RudaType, RudaLaunch, Clone)]
 pub struct WeightLayout {
     /// Number of channels, including padding, used for decomposing `k`
     pub padded_channels: FastDivmod<u32>,
@@ -25,14 +25,14 @@ pub struct WeightLayout {
     pub cols: u32,
 
     /// Size of the convolution kernel
-    #[cube(comptime)]
+    #[ruda(comptime)]
     pub params: ConvolutionParams,
     /// Global memory config for the backing tensor
-    #[cube(comptime)]
+    #[ruda(comptime)]
     pub config: GlobalLayoutConfig,
 }
 
-#[cube]
+#[ruda]
 impl WeightLayout {
     pub fn new<E: Numeric, G: GlobalConfig>(
         rows: u32,
@@ -51,7 +51,7 @@ impl WeightLayout {
     }
 }
 
-#[cube]
+#[ruda]
 impl Layout for WeightLayout {
     type Coordinates = BatchedCoords;
     type SourceCoordinates = NhwcCoords;

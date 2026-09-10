@@ -4,7 +4,7 @@ use super::{
 use rublas::tensor_grouped::grouped_matmul_nt;
 use ruda_core::tensor::Shape;
 use ruda_kernel::{
-    dsl::{Runtime, calculate_cube_count_elemwise, prelude::CubeDim},
+    dsl::{Runtime, calculate_ruda_count_elemwise, prelude::RudaDim},
     tensor::{RudaTensor, contiguous::into_contiguous},
 };
 
@@ -73,10 +73,10 @@ impl<R: Runtime> SwiGluExperts<R> {
         )?;
         let size = gate.meta.num_elements();
         if size != 0 {
-            let dim = CubeDim::new(gate.client.properties(), size);
+            let dim = RudaDim::new(gate.client.properties(), size);
             kernels::experts::swiglu::launch::<R>(
                 &gate.client,
-                calculate_cube_count_elemwise(&gate.client, size, dim),
+                calculate_ruda_count_elemwise(&gate.client, size, dim),
                 dim,
                 gate.clone().into_array_arg(),
                 up.into_array_arg(),

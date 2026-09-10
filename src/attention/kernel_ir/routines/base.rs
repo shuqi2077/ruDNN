@@ -1,7 +1,7 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use std::fmt::Debug;
 
-use ruda_kernel::dsl::CubeDim;
+use ruda_kernel::dsl::RudaDim;
 use ruda_kernel::dsl::Runtime;
 use ruda_kernel::dsl::client::ComputeClient;
 use ruda_kernel::dsl::ir::AddressType;
@@ -11,7 +11,7 @@ use crate::attention::kernel_ir::components::{
     batch::BatchAttentionFamily, global::GlobalAttentionFamily, stage::StageAttentionFamily,
 };
 use crate::attention::kernel_ir::definition::{
-    AttentionElems, AttentionProblem, AttentionSetupError, AttentionVectorSizes, CubeCountPlan,
+    AttentionElems, AttentionProblem, AttentionSetupError, AttentionVectorSizes, RudaCountPlan,
 };
 use crate::attention::kernel_ir::launch::BlueprintStrategy;
 
@@ -36,14 +36,14 @@ pub trait Routine: Debug + Clone {
 pub struct LaunchInfo<B> {
     pub blueprint: B,
     pub dtypes: AttentionElems,
-    pub cube_dim: CubeDim,
-    pub cube_count_plan: CubeCountPlan,
+    pub ruda_dim: RudaDim,
+    pub ruda_count_plan: RudaCountPlan,
     pub address_type: AddressType,
 }
 
 pub struct DeviceSettings<R: Runtime> {
     pub plane_dim: u32,
-    pub max_cube_count: (u32, u32, u32),
+    pub max_ruda_count: (u32, u32, u32),
     pub vector_sizes: AttentionVectorSizes,
     pub client: ComputeClient<R>,
 }
@@ -52,7 +52,7 @@ impl<R: Runtime> core::fmt::Debug for DeviceSettings<R> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DeviceSettings")
             .field("plane_dim", &self.plane_dim)
-            .field("max_cube_count", &self.max_cube_count)
+            .field("max_ruda_count", &self.max_ruda_count)
             .field("vector_sizes", &self.vector_sizes)
             .finish()
     }
@@ -62,7 +62,7 @@ impl<R: Runtime> DeviceSettings<R> {
     pub fn new(client: &ComputeClient<R>, problem: &AttentionProblem) -> Self {
         DeviceSettings {
             plane_dim: client.properties().hardware.plane_size_max,
-            max_cube_count: client.properties().hardware.max_cube_count,
+            max_ruda_count: client.properties().hardware.max_ruda_count,
             vector_sizes: AttentionVectorSizes::new_max_for_problem(client, problem),
             client: client.clone(),
         }

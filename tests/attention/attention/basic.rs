@@ -4,12 +4,12 @@
 //! exercising the selector heuristic for each Strategy variant. The
 //! forced-blueprint tiling-scheme sweep lives in the `extended` tier.
 
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use crate::attention::launcher::test_launch;
 use ruda_kernel::dsl::Runtime;
 use ruda_test_runtime::TestRuntime;
 use ruda_kernel::dsl::client::ComputeClient;
-use ruda_kernel::dsl::frontend::CubePrimitive;
+use ruda_kernel::dsl::frontend::RudaPrimitive;
 use ruda_kernel::dsl::ir::AddressType;
 use rudnn::attention::kernel_ir::{
     definition::{

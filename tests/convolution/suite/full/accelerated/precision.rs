@@ -1,10 +1,10 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 #[macro_export]
 macro_rules! testgen_convolution_accelerated_precision {
     ($algorithm: expr) => {
         mod f16_ty {
             use super::*;
-            use ruda_kernel::dsl::prelude::CubePrimitive;
+            use ruda_kernel::dsl::prelude::RudaPrimitive;
             use rublas::kernel_ir::definition::{MatmulElems, MatmulGlobalElems};
 
             fn dtypes() -> MatmulElems {
@@ -22,7 +22,7 @@ macro_rules! testgen_convolution_accelerated_precision {
 
         mod f32_ty {
             use super::*;
-            use ruda_kernel::dsl::prelude::CubePrimitive;
+            use ruda_kernel::dsl::prelude::RudaPrimitive;
             use ruda_core::tf32;
             use rublas::kernel_ir::definition::MatmulElems;
 

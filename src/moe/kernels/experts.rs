@@ -1,7 +1,7 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn swiglu<F: Float>(
     gate: &mut Array<F>,
     up: &Array<F>,

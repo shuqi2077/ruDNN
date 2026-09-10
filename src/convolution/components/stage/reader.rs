@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::layout::Coords2d;
 use rublas::kernel_ir::components::stage::TilingValidation;
@@ -14,7 +14,7 @@ use crate::convolution::components::stage::bias_stage::BiasStageMemory;
 /// Tiling layout specific for bias, which is one-dimensional with stride 0
 pub struct BiasTilingLayout {}
 
-#[cube]
+#[ruda]
 impl BiasTilingLayout {
     pub fn get_tile<ES: Numeric, NS: Size>(
         stage: &BiasStageMemory<ES, NS>,

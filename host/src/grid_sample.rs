@@ -245,6 +245,6 @@ fn reflect_coordinate(coord: f64, size: usize, align_corners: bool) -> f64 {
 
 // Correctness of grid_sample_2d (nearest/bilinear, zeros/border/reflection
 // padding, align_corners on/off) is covered by the cross-backend suite in
-// crates/burn-backend-tests/tests/tensor/float/ops/grid_sample.rs, which
+// crates/ruda-backend-tests/tests/tensor/float/ops/grid_sample.rs, which
 // reaches `grid_sample_2d` via the `FloatTensorOps` trait for flex. No
 // flex-specific tests remain here.

@@ -4,22 +4,22 @@ use ruda_kernel::library::tensor::layout::Coords2d;
 use ruda_kernel::library::tensor::layout::Layout;
 use ruda_kernel::library::tensor::layout::LayoutExpand;
 use ruda_kernel::library::tensor::r#virtual::VirtualTensor;
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use rublas::kernel_ir::components::global::memory::GlobalMemoryConfig;
 
 /// Global layout that uses the last two dimensions and ignores all others.
-#[derive(CubeType, Clone, Copy)]
+#[derive(RudaType, Clone, Copy)]
 pub struct AttentionGlobalLayout {
     rows: u32,
     stride_row: usize,
     columns: u32,
     stride_col: usize,
     batch_offset: usize,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     config: GlobalMemoryConfig,
 }
 
-#[cube]
+#[ruda]
 impl AttentionGlobalLayout {
     /// Creates a new 2D layout starting at `batch_index`.
     pub fn new<T: Numeric, N: Size, IO: Clone>(
@@ -39,7 +39,7 @@ impl AttentionGlobalLayout {
     }
 }
 
-#[cube]
+#[ruda]
 impl Layout for AttentionGlobalLayout {
     type Coordinates = Coords2d;
     type SourceCoordinates = Coords1d;

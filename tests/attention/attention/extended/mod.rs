@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 mod utils;
 
 mod unit {
@@ -33,7 +33,7 @@ mod unit {
 
     mod f16_ty {
         use super::*;
-        use ruda_kernel::dsl::frontend::CubePrimitive;
+        use ruda_kernel::dsl::frontend::RudaPrimitive;
         use rudnn::attention::kernel_ir::definition::AttentionGlobalTypes;
 
         fn global_dtypes<R: Runtime>(client: &ComputeClient<R>) -> AttentionGlobalTypes {
@@ -49,7 +49,7 @@ mod unit {
 
     mod f32_ty {
         use super::*;
-        use ruda_kernel::dsl::frontend::CubePrimitive;
+        use ruda_kernel::dsl::frontend::RudaPrimitive;
         use rudnn::attention::kernel_ir::definition::AttentionGlobalTypes;
 
         fn global_dtypes<R: Runtime>(client: &ComputeClient<R>) -> AttentionGlobalTypes {
@@ -115,7 +115,7 @@ mod blackbox_accelerated {
 
     mod f16_ty {
         use super::*;
-        use ruda_kernel::dsl::frontend::CubePrimitive;
+        use ruda_kernel::dsl::frontend::RudaPrimitive;
         use rudnn::attention::kernel_ir::definition::AttentionGlobalTypes;
 
         fn global_dtypes<R: Runtime>(client: &ComputeClient<R>) -> AttentionGlobalTypes {

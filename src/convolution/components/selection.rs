@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::Runtime;
 use ruda_kernel::dsl::client::ComputeClient;
 use ruda_kernel::dsl::ir::StorageType;
@@ -21,7 +21,7 @@ use crate::convolution::components::ConvolutionProblem;
 /// A heuristic to find the number of tiles in the stage.
 ///
 /// Maximizes tensor core usage unless doing so would significantly impair
-/// parallelization across SMs. It ensures the number of cubes is as close as
+/// parallelization across SMs. It ensures the number of rudas is as close as
 /// possible to the available SMs.
 pub(crate) fn find_stage_size_m_n(
     m: usize,
@@ -54,28 +54,28 @@ pub(crate) fn find_stage_size_m_n(
     let total_tiles = total_tiles_m * total_tiles_n;
 
     let mut stage_num_tiles = dim_num_tiles_m * dim_num_tiles_n;
-    let mut num_cubes_expected = total_tiles.div_ceil(stage_num_tiles);
+    let mut num_rudas_expected = total_tiles.div_ceil(stage_num_tiles);
 
     // We keep track of two configurations to select the closest to `num_sm`, whether it's a bit over or under
     let mut previous_dim_num_tiles = dim_num_tiles_m;
-    let mut previous_num_cubes = num_cubes_expected;
+    let mut previous_num_rudas = num_rudas_expected;
 
     // Refine tensor core usage to stay as close as possible to `num_sm`
-    while num_cubes_expected < num_sm && dim_num_tiles_m > 1 {
+    while num_rudas_expected < num_sm && dim_num_tiles_m > 1 {
         previous_dim_num_tiles = dim_num_tiles_m;
-        previous_num_cubes = num_cubes_expected;
+        previous_num_rudas = num_rudas_expected;
 
         // Reduce tensor core usage
         dim_num_tiles_m = dim_num_tiles_m.div_ceil(2);
         stage_num_tiles = dim_num_tiles_m * dim_num_tiles_n;
 
-        // Number of cubes grows as a consequence of smaller stage
-        num_cubes_expected = total_tiles.div_ceil(stage_num_tiles);
+        // Number of rudas grows as a consequence of smaller stage
+        num_rudas_expected = total_tiles.div_ceil(stage_num_tiles);
     }
 
     // Compare previous and current values to determine the closest to `num_sm`
-    if (previous_num_cubes as isize - num_sm as isize).abs()
-        <= (num_cubes_expected as isize - num_sm as isize).abs()
+    if (previous_num_rudas as isize - num_sm as isize).abs()
+        <= (num_rudas_expected as isize - num_sm as isize).abs()
     {
         (previous_dim_num_tiles, dim_num_tiles_n)
     } else {

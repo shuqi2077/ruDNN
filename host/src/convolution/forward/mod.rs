@@ -258,7 +258,7 @@ use gemm_dispatch::*;
 // and flex-internal fast-path dispatch (1x1, depthwise, small-channel,
 // direct, oh-outer) plus validation/panic checks on flex helpers. Plain
 // conv shape/stride/padding/groups correctness is covered at the public
-// API level by crates/burn-backend-tests/tests/tensor/float/module/
+// API level by crates/ruda-backend-tests/tests/tensor/float/module/
 // conv{1,2,3}d.rs, so those tests were removed from here. When adding
 // new tests, keep them here only if they probe flex dtype dispatch or a
 // flex-internal fast path; otherwise add them there.

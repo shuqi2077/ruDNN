@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::Runtime;
 use ruda_kernel::dsl::client::ComputeClient;
 use ruda_kernel::dsl::prelude::TensorBinding;
@@ -122,8 +122,8 @@ pub fn launch_attention<R: Runtime, A: Routine>(
     let result = unsafe {
         <A as Routine>::BatchAttention::launch_unchecked::<TensorArgs, R>(
             client,
-            launch_info.cube_dim,
-            launch_info.cube_count_plan.resolve(),
+            launch_info.ruda_dim,
+            launch_info.ruda_count_plan.resolve(),
             launch_info.address_type,
             TensorInputsLaunch::new(
                 query.into_tensor_arg(),
@@ -132,7 +132,7 @@ pub fn launch_attention<R: Runtime, A: Routine>(
                 mask.map(|it| it.into_tensor_arg()).into(),
             ),
             out.into_tensor_arg(),
-            ruda_kernel::tiling::cube_count::cube_mapping_launch(&launch_info.cube_count_plan),
+            ruda_kernel::tiling::ruda_count::ruda_mapping_launch(&launch_info.ruda_count_plan),
             &launch_info.dtypes,
             &device_settings.vector_sizes,
             launch_info.blueprint,

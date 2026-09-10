@@ -1,7 +1,7 @@
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::View;
 use ruda_kernel::library::tensor::layout::Coords2d;
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use rublas::kernel_ir::components::global::{
     GlobalWriterConfig, PartitionedStage, WriteEvent, WriteEventExpand, WriteEventListener,
     plane_write,
@@ -14,19 +14,19 @@ use crate::attention::kernel_ir::components::{
     stage::{AttentionPartitioner, StageAttentionConfig, plane::PlanePartitioner},
 };
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct PlaneAttentionWriter<ES: Numeric, ESS: Size, EO: Numeric, EOS: Size> {
     global: View<Vector<EO, EOS>, TiledCoords, ReadWrite>,
     stage: PartitionedStage<ES, ESS>,
 
-    #[cube(comptime)]
+    #[ruda(comptime)]
     config: GlobalWriterConfig,
 }
 
-#[cube]
+#[ruda]
 impl<ES: Numeric, ESS: Size, EG: Numeric, EGS: Size> PlaneAttentionWriter<ES, ESS, EG, EGS> {}
 
-#[cube]
+#[ruda]
 impl<ES: Numeric, ESS: Size, EG: Numeric, EGS: Size> WriteEventListener
     for PlaneAttentionWriter<ES, ESS, EG, EGS>
 {
@@ -45,7 +45,7 @@ impl<ES: Numeric, ESS: Size, EG: Numeric, EGS: Size> WriteEventListener
     }
 }
 
-#[cube]
+#[ruda]
 impl<ES: Numeric, ESS: Size, EG: Numeric, EGS: Size> AttentionWriter<ES, ESS, EG, EGS>
     for PlaneAttentionWriter<ES, ESS, EG, EGS>
 {

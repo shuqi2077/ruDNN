@@ -1,25 +1,25 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use {ruda_kernel::dsl::Runtime, ruda_kernel::tensor::contiguous::into_contiguous_aligned, ruda_kernel::tensor::layout::address_type, ruda_kernel::tensor::layout::max_vector_size, ruda_kernel::tensor::RudaTensor};
 use {ruda_kernel::tensor::layout::decompose_linear, ruda_kernel::tensor::allocation::empty_device_dtype};
 use {ruda_core::tensor::TensorMetadata, ruda_core::tensor::spatial::ConvOptions, ruda_core::tensor::spatial::calculate_conv_output_sizes};
-use {ruda_kernel::dsl::calculate_cube_count_elemwise, ruda_kernel::dsl::prelude::*, ruda_kernel::library::tensor::layout::linear::LinearView, ruda_kernel::dsl::tensor_vector_size_parallel};
+use {ruda_kernel::dsl::calculate_ruda_count_elemwise, ruda_kernel::dsl::prelude::*, ruda_kernel::library::tensor::layout::linear::LinearView, ruda_kernel::dsl::tensor_vector_size_parallel};
 use {ruda_kernel::dsl::num_traits::Zero, ruda_kernel::library::FastDivmod};
 use {crate::convolution::components::ConvSetupError};
 
-#[derive(CubeLaunch, CubeType, Clone)]
+#[derive(RudaLaunch, RudaType, Clone)]
 pub(crate) struct ConvParam {
     pub stride: u32,
     pub dilation: u32,
     pub padding: i32,
 }
 
-#[derive(CubeLaunch, CubeType)]
+#[derive(RudaLaunch, RudaType)]
 struct Conv2dArgs {
     conv_params: Sequence<ConvParam>,
     channels_per_group: u32,
 }
 
-#[cube(launch_unchecked, address_type = "dynamic")]
+#[ruda(launch_unchecked, address_type = "dynamic")]
 #[allow(clippy::redundant_closure)]
 fn direct_conv2d_kernel<E: Numeric, NIn: Size, NOut: Size>(
     input: &Tensor<Vector<E, NIn>>,
@@ -98,7 +98,7 @@ fn direct_conv2d_kernel<E: Numeric, NIn: Size, NOut: Size>(
     output[ABSOLUTE_POS] = sum;
 }
 
-#[derive(CubeType, Clone)]
+#[derive(RudaType, Clone)]
 struct LoopParams {
     out_pos: Sequence<u32>,
     in_shape: Sequence<u32>,
@@ -111,7 +111,7 @@ struct LoopParams {
     stride_oc: usize,
 }
 
-#[cube]
+#[ruda]
 fn kernel_loop<E: Numeric, NIn: Size, NOut: Size>(
     input: &Tensor<Vector<E, NIn>>,
     weight: &Tensor<Vector<E, NIn>>,
@@ -166,7 +166,7 @@ fn kernel_loop<E: Numeric, NIn: Size, NOut: Size>(
     }
 }
 
-#[cube]
+#[ruda]
 fn kernel_loop_inner<E: Numeric, NIn: Size, NOut: Size>(
     input: &Tensor<Vector<E, NIn>>,
     weight: &Tensor<Vector<E, NIn>>,
@@ -283,14 +283,14 @@ pub fn conv_direct<R: Runtime, const N: usize>(
     }
 
     let working_units = output.meta.num_elements() / vector_size_out;
-    let cube_dim = CubeDim::new(input.client.properties(), working_units);
-    let cube_count = calculate_cube_count_elemwise(&input.client, working_units, cube_dim);
+    let ruda_dim = RudaDim::new(input.client.properties(), working_units);
+    let ruda_count = calculate_ruda_count_elemwise(&input.client, working_units, ruda_dim);
 
     unsafe {
         direct_conv2d_kernel::launch_unchecked(
             &output.client,
-            cube_count,
-            cube_dim,
+            ruda_count,
+            ruda_dim,
             address_type!(input, weight, bias, output),
             vector_size_in,
             vector_size_out,

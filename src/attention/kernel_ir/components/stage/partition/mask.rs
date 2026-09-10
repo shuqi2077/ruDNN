@@ -1,18 +1,18 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
 use ruda_kernel::library::tensor::layout::Coords2d;
 
 use crate::attention::kernel_ir::components::tile::{MaskConfig, MaskTile};
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 /// Holds a single live mask tile (it is applied immediately to the score tile,
 /// so we never need more than one in flight).
 pub struct MaskPartition<F: Float> {
     sequence: Sequence<MaskTile<F>>,
 }
 
-#[cube]
+#[ruda]
 impl<F: Float> MaskPartition<F> {
     pub fn new(
         out_of_bounds: ComptimeOption<Coords2d>,

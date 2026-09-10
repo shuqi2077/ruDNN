@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::r#virtual::VirtualTensor;
 use std::marker::PhantomData;
@@ -10,14 +10,14 @@ use crate::attention::kernel_ir::components::{
 };
 use crate::attention::kernel_ir::{
     definition::attention_types::*,
-    definition::{AttentionPrecision, CubeMapping, cube_pos_to_q_batch_heads},
+    definition::{AttentionPrecision, RudaMapping, ruda_pos_to_q_batch_heads},
 };
 
 pub struct SimpleBatchAttention<AP: AttentionPrecision, GA: GlobalAttention<AP>> {
     _phantom: PhantomData<(AP, GA)>,
 }
 
-#[cube]
+#[ruda]
 impl<GA: GlobalAttention<AP>, AP: AttentionPrecision> BatchAttention<AP>
     for SimpleBatchAttention<AP, GA>
 {
@@ -29,18 +29,18 @@ impl<GA: GlobalAttention<AP>, AP: AttentionPrecision> BatchAttention<AP>
         value: VirtualTensor<VG<AP>, VGS<AP>>,
         mask: ComptimeOption<VirtualTensor<MSK<AP>, MSKS<AP>>>,
         out: VirtualTensor<OG<AP>, OGS<AP>, ReadWrite>,
-        cube_mapping: CubeMapping,
+        ruda_mapping: RudaMapping,
         #[comptime] config: Self::Config,
     ) {
         #[allow(clippy::collapsible_if)]
-        if cube_mapping.can_yield_extra_cubes {
-            if CUBE_POS >= cube_mapping.num_valid_cubes() {
+        if ruda_mapping.can_yield_extra_rudas {
+            if RUDA_POS >= ruda_mapping.num_valid_rudas() {
                 terminate!();
             }
         }
 
         let global_config = config.global_config();
-        let (q_index, batch_index) = cube_pos_to_q_batch_heads(&cube_mapping);
+        let (q_index, batch_index) = ruda_pos_to_q_batch_heads(&ruda_mapping);
 
         let stage_q_offset = q_index * global_config.stage_config().elements_in_stage_seq_q();
 

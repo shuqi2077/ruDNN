@@ -1,5 +1,5 @@
-use ruda_kernel::dsl as cubecl;
-use ruda_kernel::dsl::CubeDim;
+use ruda_kernel::dsl as kernel_dsl;
+use ruda_kernel::dsl::RudaDim;
 
 use crate::attention::kernel_ir::components::{batch::BatchAttentionConfig, global::GlobalAttentionConfig};
 
@@ -15,8 +15,8 @@ impl<G: GlobalAttentionConfig> BatchAttentionConfig for SimpleBatchConfig<G> {
         self.global_config
     }
 
-    fn cube_dim(&self) -> CubeDim {
-        self.global_config.cube_dim()
+    fn ruda_dim(&self) -> RudaDim {
+        self.global_config.ruda_dim()
     }
 }
 

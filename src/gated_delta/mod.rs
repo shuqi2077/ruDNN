@@ -9,7 +9,7 @@ use ruda_core::{
     tensor::{DType, Shape},
 };
 use ruda_kernel::{
-    dsl::{Runtime, calculate_cube_count_elemwise, prelude::CubeDim},
+    dsl::{Runtime, calculate_ruda_count_elemwise, prelude::RudaDim},
     tensor::{RudaTensor, allocation::empty_device_contiguous_dtype, contiguous::into_contiguous},
 };
 use std::fmt;
@@ -125,8 +125,8 @@ fn recurrent_validated<R: Runtime>(
     }
     let final_state = allocate([batch, heads, key_dim, value_dim].into(), DType::F32);
     let columns = batch * heads * value_dim;
-    let dim = CubeDim::new(q.client.properties(), columns);
-    let count = calculate_cube_count_elemwise(&q.client, columns, dim);
+    let dim = RudaDim::new(q.client.properties(), columns);
+    let count = calculate_ruda_count_elemwise(&q.client, columns, dim);
     let client = q.client.clone();
     let dtype = q.dtype;
     kernel::recurrent::launch::<R>(

@@ -9,7 +9,7 @@ use ruda_core::{device::Device, tensor::DType};
 use ruda_kernel::{
     dsl::{
         Runtime,
-        prelude::{CubeCount, CubeDim},
+        prelude::{RudaCount, RudaDim},
     },
     tensor::{RudaTensor, allocation::empty_device_contiguous_dtype, contiguous::into_contiguous},
 };
@@ -62,7 +62,7 @@ pub fn layer_norm<R: Runtime>(
         }
     }
     let plane = input.client.properties().hardware.plane_size_max;
-    let maximum = input.client.properties().hardware.max_cube_dim;
+    let maximum = input.client.properties().hardware.max_ruda_dim;
     if !plane.is_power_of_two() || plane > maximum.0 || maximum.1 < 4 {
         return Err(NormalizationError(
             "LayerNorm runtime cannot launch four planes",
@@ -84,8 +84,8 @@ pub fn layer_norm<R: Runtime>(
     let beta = beta.unwrap_or_else(|| gamma.clone());
     kernel::layer_norm::launch::<R>(
         &client,
-        CubeCount::Static(rows as u32, 1, 1),
-        CubeDim::new_2d(plane, 4),
+        RudaCount::Static(rows as u32, 1, 1),
+        RudaDim::new_2d(plane, 4),
         into_contiguous(input).into_array_arg(),
         into_contiguous(gamma).into_array_arg(),
         into_contiguous(beta).into_array_arg(),

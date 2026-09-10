@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use crate::convolution::components::{ConvolutionOperation, global::args::RuntimeArgs};
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::into_contiguous_pitched;

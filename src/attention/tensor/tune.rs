@@ -1,4 +1,4 @@
-use ruda_kernel::{dsl::{Runtime, CubeTuneId}, tensor::RudaTensor};
+use ruda_kernel::{dsl::{Runtime, RudaTuneId}, tensor::RudaTensor};
 use super::{AttentionStrategy, attention};
 use ruda_core::tensor::spatial::AttentionModuleOptions;
 use ruda_kernel::dsl::tune::{LocalTuner, Tunable, TunableSet, TuneGroup};
@@ -17,7 +17,7 @@ pub fn attention_autotune<R: Runtime>(
 ) -> RudaTensor<R> {
     let client = query.client.clone();
 
-    static TUNER: LocalTuner<AttentionAutotuneKey, CubeTuneId> = LocalTuner::new("burn_cubecl::kernel::attention::tune");
+    static TUNER: LocalTuner<AttentionAutotuneKey, RudaTuneId> = LocalTuner::new("ruda_tensor_device::kernel::attention::tune");
 
     let tunables = TUNER.init(|| {
         const PRIORITY_MAX: i8 = 3;
@@ -106,7 +106,7 @@ pub fn attention_autotune<R: Runtime>(
     });
 
     TUNER.execute(
-        &CubeTuneId::new(&client, &query.device),
+        &RudaTuneId::new(&client, &query.device),
         &client,
         tunables,
         (query, key, value, mask, attn_bias, options),

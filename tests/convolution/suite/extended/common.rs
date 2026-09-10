@@ -1,7 +1,7 @@
 //! Shared helpers for the extended (forced-blueprint) tier.
 
-use ruda_kernel::dsl as cubecl;
-use ruda_kernel::dsl::prelude::CubePrimitive;
+use ruda_kernel::dsl as kernel_dsl;
+use ruda_kernel::dsl::prelude::RudaPrimitive;
 use rublas::kernel_ir::definition::{MatmulElems, MatmulGlobalElems, TilingScheme};
 use ruda_kernel::tiling::{PartitionSize, StageSize, TileSize};
 

@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::Runtime;
 use ruda_kernel::tensor::contiguous::into_contiguous_aligned;
 use ruda_kernel::tensor::layout::address_type;
@@ -10,14 +10,14 @@ use ruda_kernel::tensor::permutation::permute_nchw_to_nhwc;
 use ruda_kernel::tensor::permutation::permute_nhwc_to_nchw;
 use ruda_kernel::tensor::RudaTensor;
 use ruda_core::tensor::Shape;
-use ruda_kernel::dsl::calculate_cube_count_elemwise;
+use ruda_kernel::dsl::calculate_ruda_count_elemwise;
 use ruda_kernel::dsl::num_traits::Zero;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::FastDivmod;
 
 use super::{PoolBackwardArgs, PoolBackwardArgsLaunch};
 
-#[cube(launch_unchecked, address_type = "dynamic")]
+#[ruda(launch_unchecked, address_type = "dynamic")]
 fn max_pool2d_with_indices_backward_kernel<E: Numeric, I: Int, N: Size>(
     grad: &Tensor<Vector<E, N>>,
     indices: &Tensor<Vector<I, N>>,
@@ -81,7 +81,7 @@ fn max_pool2d_with_indices_backward_kernel<E: Numeric, I: Int, N: Size>(
     output[index_output / output.vector_size()] = grad_acc;
 }
 
-#[cube]
+#[ruda]
 fn loop_ranges(
     ih: i32,
     iw: i32,
@@ -132,16 +132,16 @@ pub fn max_pool2d_with_indices_backward<R: Runtime>(
     let output = empty_device_dtype(x.client.clone(), x.device.clone(), out_shape, x.dtype);
 
     let working_units = output.meta.num_elements() / vector_size as usize;
-    let cube_dim = CubeDim::new(x.client.properties(), working_units);
-    let cube_count = calculate_cube_count_elemwise(&x.client, working_units, cube_dim);
+    let ruda_dim = RudaDim::new(x.client.properties(), working_units);
+    let ruda_count = calculate_ruda_count_elemwise(&x.client, working_units, ruda_dim);
     let indices_dtype = indices.dtype;
     let x_dtype = x.dtype;
 
     unsafe {
         max_pool2d_with_indices_backward_kernel::launch_unchecked(
             &output.client,
-            cube_count,
-            cube_dim,
+            ruda_count,
+            ruda_dim,
             address_type!(grad, indices, output),
             vector_size,
             grad.into_tensor_arg(),

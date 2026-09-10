@@ -1,6 +1,6 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::library::FastDivmod;
-use ruda_kernel::dsl::calculate_cube_count_elemwise;
+use ruda_kernel::dsl::calculate_ruda_count_elemwise;
 use ruda_kernel::dsl::prelude::*;
 
 use ruda_kernel::dsl::Runtime;
@@ -18,7 +18,7 @@ use super::base::{PaddingMode, fetch_value, reflect_coord};
 /// 1. Reading (x, y) coordinates from the grid tensor (once per spatial position)
 /// 2. Converting normalized [-1, 1] coords to pixel coordinates (once)
 /// 3. For each channel: fetch 4 corner values, interpolate, and write output
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 fn grid_sample_bilinear_kernel<F: Float>(
     input: &Tensor<F>,                          // [N, C, H_in, W_in]
     grid: &Tensor<F>,                           // [N, H_out, W_out, 2]
@@ -157,8 +157,8 @@ pub fn grid_sample_bilinear_launch<R: Runtime>(
         shape_spatial.push(*dim);
     }
 
-    let cube_dim = CubeDim::new(input.client.properties(), num_spatial);
-    let cube_count = calculate_cube_count_elemwise(&input.client, num_spatial, cube_dim);
+    let ruda_dim = RudaDim::new(input.client.properties(), num_spatial);
+    let ruda_count = calculate_ruda_count_elemwise(&input.client, num_spatial, ruda_dim);
 
     let padding_mode: PaddingMode = options.padding_mode.into();
 
@@ -166,8 +166,8 @@ pub fn grid_sample_bilinear_launch<R: Runtime>(
 
     grid_sample_bilinear_kernel::launch(
         &output.client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         address_type!(input, grid, output),
         input.into_tensor_arg(),
         grid.into_tensor_arg(),

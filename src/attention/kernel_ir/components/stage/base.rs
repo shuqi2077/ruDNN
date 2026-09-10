@@ -1,5 +1,5 @@
 use ruda_kernel::dsl::prelude::*;
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::ir::DeviceProperties;
 use rublas::kernel_ir::components::{
     global::{WriteEventListener, WriteTiling, read::sync_full_cyclic::SyncFullCyclicLoading},
@@ -68,23 +68,23 @@ pub trait StageAttentionFamily: Send + Sync + 'static {
     ) -> Result<Self::Config, AttentionSetupError>;
 }
 
-#[cube]
+#[ruda]
 pub trait StageAttention<AP: AttentionPrecision>: 'static + Send + Sync {
-    type KeyStage: CubeType;
-    type ValueStage: CubeType;
-    type OutStage: CubeType;
+    type KeyStage: RudaType;
+    type ValueStage: RudaType;
+    type OutStage: RudaType;
 
     /// The configuration type associated with this Attention.
     type Config: StageAttentionConfig;
     type Partitioner: AttentionPartitioner;
 
-    type QueryPartition: CubeType;
-    type KeyPartition: CubeType;
-    type ValuePartition: CubeType;
-    type SoftmaxPartition: CubeType;
-    type OutputPartition: CubeType;
-    type MaskPartition: CubeType;
-    type RunningState: CubeType;
+    type QueryPartition: RudaType;
+    type KeyPartition: RudaType;
+    type ValuePartition: RudaType;
+    type SoftmaxPartition: RudaType;
+    type OutputPartition: RudaType;
+    type MaskPartition: RudaType;
+    type RunningState: RudaType;
 
     fn init_state(#[comptime] config: Self::Config) -> Sequence<Self::RunningState>;
 

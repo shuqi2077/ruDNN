@@ -1,7 +1,7 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use std::ops::Deref;
 
-use ruda_kernel::dsl::CubeDim;
+use ruda_kernel::dsl::RudaDim;
 use rublas::kernel_ir::{
     components::global::{GlobalConfig, memory::GlobalMemoryConfig},
     definition::{MatmulSetupError, MatmulVectorSizes},
@@ -23,7 +23,7 @@ pub trait ConvGemmConfig:
     fn operation(&self) -> ConvolutionOperation;
     fn vector_sizes(&self) -> MatmulVectorSizes;
     fn check_spatial_bounds(&self) -> bool;
-    fn cube_dim(&self) -> CubeDim;
+    fn ruda_dim(&self) -> RudaDim;
     fn lhs_global_memory_config(&self) -> GlobalMemoryConfig;
     fn rhs_global_memory_config(&self) -> GlobalMemoryConfig;
     fn out_global_memory_config(&self) -> GlobalMemoryConfig;
@@ -84,8 +84,8 @@ impl<M: GlobalConfig> ConvGemmConfig for ConvolutionConfig<M> {
         self.matmul.global_vector_sizes()
     }
 
-    fn cube_dim(&self) -> CubeDim {
-        self.matmul.cube_dim()
+    fn ruda_dim(&self) -> RudaDim {
+        self.matmul.ruda_dim()
     }
 
     fn check_spatial_bounds(&self) -> bool {

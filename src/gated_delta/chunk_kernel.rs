@@ -1,15 +1,15 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn prefix(
     decay: &Array<f32>, cumulative: &mut Array<f32>,
     sequence: u32, start: u32, #[comptime] chunk: usize,
     #[comptime] tile: usize, #[comptime] _source: String,
 ) {
-    let head = CUBE_POS_X as usize;
+    let head = RUDA_POS_X as usize;
     let lane = UNIT_POS as usize;
-    let threads = CUBE_DIM as usize;
+    let threads = RUDA_DIM as usize;
     let mut values = SharedMemory::<f32>::new(tile);
     let mut carry = 0f32;
     let mut offset = 0usize;
@@ -25,14 +25,14 @@ pub(crate) fn prefix(
             values[i] = value;
             i += threads;
         }
-        sync_cube();
+        sync_ruda();
         let mut stride = 1usize;
         while stride < tile {
             let target = (lane / stride) * (2 * stride) + stride + lane % stride;
             if target < tile {
                 values[target] += values[(lane / stride) * (2 * stride) + stride - 1];
             }
-            sync_cube();
+            sync_ruda();
             stride *= 2;
         }
         i = lane;
@@ -41,12 +41,12 @@ pub(crate) fn prefix(
             i += threads;
         }
         carry = values[tile - 1];
-        sync_cube();
+        sync_ruda();
         offset += tile;
     }
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn prepare<F: Float>(
     input: &Array<F>, beta: &Array<F>, cumulative: &Array<f32>,
     output: &mut Array<f32>, sequence: u32, start: u32, chunk: u32, width: u32,
@@ -73,7 +73,7 @@ pub(crate) fn prepare<F: Float>(
     output[i] = value;
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn decay_mask(
     products: &Array<f32>, cumulative: &Array<f32>, output: &mut Array<f32>,
     chunk: u32, #[comptime] strict: bool, #[comptime] _source: String,
@@ -95,14 +95,14 @@ pub(crate) fn decay_mask(
     output[i] = value;
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn triangular_inverse(
     input: &Array<f32>, output: &mut Array<f32>,
     #[comptime] chunk: usize, #[comptime] _source: String,
 ) {
-    let base = CUBE_POS_X as usize * chunk * chunk;
+    let base = RUDA_POS_X as usize * chunk * chunk;
     let lane = UNIT_POS as usize;
-    let threads = CUBE_DIM as usize;
+    let threads = RUDA_DIM as usize;
     let mut matrix = SharedMemory::<f32>::new(chunk * chunk);
     let mut row = SharedMemory::<f32>::new(chunk);
     let mut i = lane;
@@ -110,14 +110,14 @@ pub(crate) fn triangular_inverse(
         matrix[i] = input[base + i];
         i += threads;
     }
-    sync_cube();
+    sync_ruda();
     for r in 1..chunk {
         let mut col = lane;
         while col < r {
             row[col] = matrix[r * chunk + col];
             col += threads;
         }
-        sync_cube();
+        sync_ruda();
         col = lane;
         while col < r {
             let mut sum0 = 0f32;
@@ -139,7 +139,7 @@ pub(crate) fn triangular_inverse(
             matrix[r * chunk + col] = row[col] + sum;
             col += threads;
         }
-        sync_cube();
+        sync_ruda();
     }
     i = lane;
     while i < chunk * chunk {
@@ -150,7 +150,7 @@ pub(crate) fn triangular_inverse(
     }
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn subtract(
     lhs: &Array<f32>, rhs: &Array<f32>, output: &mut Array<f32>,
     #[comptime] _source: String,
@@ -159,7 +159,7 @@ pub(crate) fn subtract(
     if i < output.len() { output[i] = lhs[i] - rhs[i]; }
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn write_output<F: Float>(
     inter: &Array<f32>, intra: &Array<f32>, output: &mut Array<F>,
     sequence: u32, start: u32, chunk: u32, width: u32,
@@ -176,7 +176,7 @@ pub(crate) fn write_output<F: Float>(
     }
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn update_state(
     initial: &Array<f32>, update: &Array<f32>, cumulative: &Array<f32>,
     output: &mut Array<f32>, chunk: u32, state_size: u32, #[comptime] _source: String,

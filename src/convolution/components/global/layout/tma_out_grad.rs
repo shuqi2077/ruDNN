@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::layout::Coords2d;
 use ruda_kernel::library::tensor::layout::Layout;
@@ -10,13 +10,13 @@ use crate::convolution::components::ConvolutionProblem;
 /// Weight backwards needs a consolidated layout to work properly across the combined `k` dimension.
 /// Padding to an even tile shape on width isn't valid, because `im2col` doesn't do this.
 /// Wouldn't be necessary with `im2colWide`, should investigate at some point.
-#[derive(CubeType, CubeLaunch)]
+#[derive(RudaType, RudaLaunch)]
 pub struct TmaOutGradLayout {
     rows: u32,
     cols: u32,
 }
 
-#[cube]
+#[ruda]
 impl Layout for TmaOutGradLayout {
     type Coordinates = BatchedCoords;
     type SourceCoordinates = Coords2d;

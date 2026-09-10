@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use std::marker::PhantomData;
 
 use crate::attention::kernel_ir::{
@@ -18,7 +18,7 @@ use ruda_kernel::dsl::ir::DeviceProperties;
 use ruda_kernel::dsl::prelude::ReadWrite;
 use rublas::kernel_ir::components::stage::StageFamily;
 use ruda_kernel::tiling::{
-    CubeDimResource, MatrixLayout,
+    RudaDimResource, MatrixLayout,
     stage::{StageMemoryConfig, SwizzleMode},
 };
 
@@ -56,8 +56,8 @@ impl<SK: StageFamily, SV: StageFamily, SO: StageFamily<ReadWrite>> StageAttentio
         let tile_attention =
             TileAttentionKind::Unit.expand_tile_attention(device_props, blueprint, dtypes)?;
         let compute_resources = match TileAttentionKind::Unit.computation_resources()? {
-            CubeDimResource::Units(units) => {
-                CubeDimResource::Units(units * blueprint.tiling_scheme.stage_size.seq_q)
+            RudaDimResource::Units(units) => {
+                RudaDimResource::Units(units * blueprint.tiling_scheme.stage_size.seq_q)
             }
             _ => {
                 return Err(AttentionSetupError::InvalidConfig(Box::new(

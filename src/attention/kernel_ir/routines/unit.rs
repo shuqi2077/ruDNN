@@ -1,14 +1,14 @@
-use ruda_kernel::dsl as cubecl;
-use ruda_kernel::dsl::prelude::CubePrimitive as _;
-use ruda_kernel::dsl::CubeDim;
+use ruda_kernel::dsl as kernel_dsl;
+use ruda_kernel::dsl::prelude::RudaPrimitive as _;
+use ruda_kernel::dsl::RudaDim;
 use ruda_kernel::dsl::Runtime;
 use rublas::kernel_ir::components::{global::PartitionedStageFamily, stage::StridedStageFamily};
-use ruda_kernel::tiling::CubeDimResource;
+use ruda_kernel::tiling::RudaDimResource;
 
 use crate::attention::kernel_ir::definition::{
     AttentionAvailabilityError, AttentionBlueprint, AttentionElems, AttentionPartitionSize,
     AttentionProblem, AttentionSetupError, AttentionStageSize, AttentionTileSize,
-    AttentionTilingScheme, HypercubeBlueprint,
+    AttentionTilingScheme, HyperrudaBlueprint,
 };
 use crate::attention::kernel_ir::{
     components::stage::unit::UnitPartitionStageAttentionFamily, components::tile::TileAttentionKind,
@@ -64,8 +64,8 @@ impl Routine for UnitRoutine {
         );
 
         let compute_resources = match Self::TILE_KIND.computation_resources()? {
-            CubeDimResource::Units(units) => {
-                CubeDimResource::Units(units * blueprint.tiling_scheme.stage_size.seq_q)
+            RudaDimResource::Units(units) => {
+                RudaDimResource::Units(units * blueprint.tiling_scheme.stage_size.seq_q)
             }
             _ => {
                 return Err(AttentionSetupError::InvalidConfig(Box::new(
@@ -75,15 +75,15 @@ impl Routine for UnitRoutine {
         };
 
         let num_planes = compute_resources.num_planes(blueprint.plane_dim)?;
-        let cube_dim = CubeDim::new_2d(blueprint.plane_dim, num_planes);
-        let cube_count_plan =
-            blueprint.cube_count_plan(&problem.dims, &device_settings.max_cube_count);
+        let ruda_dim = RudaDim::new_2d(blueprint.plane_dim, num_planes);
+        let ruda_count_plan =
+            blueprint.ruda_count_plan(&problem.dims, &device_settings.max_ruda_count);
 
         Ok(LaunchInfo {
             blueprint,
             dtypes,
-            cube_dim,
-            cube_count_plan,
+            ruda_dim,
+            ruda_count_plan,
             address_type: problem.address_type,
         })
     }
@@ -116,7 +116,7 @@ fn blueprint<R: Runtime>(
             };
 
             let blueprint = AttentionBlueprint {
-                hypercube_blueprint: HypercubeBlueprint::builder().build(),
+                hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
                 tiling_scheme,
                 plane_dim,
                 two_rows_in_array_tile: false,

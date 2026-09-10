@@ -1,8 +1,8 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::library::FastDivmod;
 use ruda_kernel::library::tensor::layout::linear::LinearLayout;
 use ruda_kernel::library::tensor::layout::*;
-use ruda_kernel::dsl::calculate_cube_count_elemwise;
+use ruda_kernel::dsl::calculate_ruda_count_elemwise;
 use ruda_kernel::dsl::prelude::*;
 
 use ruda_kernel::dsl::Runtime;
@@ -12,7 +12,7 @@ use ruda_kernel::tensor::layout::shape_divmod;
 use ruda_kernel::tensor::layout::max_vector_size;
 use ruda_kernel::tensor::RudaTensor;
 
-#[cube]
+#[ruda]
 pub(super) fn bicubic_coordinate(
     index: usize,
     input_size: usize,
@@ -30,7 +30,7 @@ pub(super) fn bicubic_coordinate(
     }
 }
 
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 fn interpolate_bicubic_kernel<F: Float, N: Size>(
     input: &Tensor<Vector<F, N>>,
     output: &mut Tensor<Vector<F, N>>,
@@ -128,7 +128,7 @@ fn interpolate_bicubic_kernel<F: Float, N: Size>(
     output[out_idx] = val;
 }
 
-#[cube]
+#[ruda]
 fn cubic_interp_1d<F: Float, N: Size>(
     x0: Vector<F, N>,
     x1: Vector<F, N>,
@@ -144,7 +144,7 @@ fn cubic_interp_1d<F: Float, N: Size>(
     x0 * coeffs0 + x1 * coeffs1 + x2 * coeffs2 + x3 * coeffs3
 }
 
-#[cube]
+#[ruda]
 pub(crate) fn cubic_coefficient<F: Float, N: Size>(
     t: Vector<F, N>,
     #[comptime] tap: usize,
@@ -161,14 +161,14 @@ pub(crate) fn cubic_coefficient<F: Float, N: Size>(
     }
 }
 
-#[cube]
+#[ruda]
 fn cubic_convolution_1<F: Float, N: Size>(x: Vector<F, N>, a: Vector<F, N>) -> Vector<F, N> {
     let conv = (a + float(2.0)) * x;
     let tmp = a + float(3.0);
     (conv - tmp) * x * x + float(1.0)
 }
 
-#[cube]
+#[ruda]
 fn cubic_convolution_2<F: Float, N: Size>(x: Vector<F, N>, a: Vector<F, N>) -> Vector<F, N> {
     let conv = a * x;
     let conv = (conv - float(5.0) * a) * x;
@@ -178,7 +178,7 @@ fn cubic_convolution_2<F: Float, N: Size>(x: Vector<F, N>, a: Vector<F, N>) -> V
     conv - float(4.0) * a
 }
 
-#[cube]
+#[ruda]
 fn float<F: Float, N: Size>(#[comptime] v: f32) -> Vector<F, N> {
     Vector::new(F::new(v))
 }
@@ -193,13 +193,13 @@ pub fn interpolate_bicubic_launch<R: Runtime>(
     let out_layout = linear_layout(&output, vector_size);
 
     let working_units = output.meta.num_elements() / vector_size as usize;
-    let cube_dim = CubeDim::new(input.client.properties(), working_units);
-    let cube_count = calculate_cube_count_elemwise(&input.client, working_units, cube_dim);
+    let ruda_dim = RudaDim::new(input.client.properties(), working_units);
+    let ruda_count = calculate_ruda_count_elemwise(&input.client, working_units, ruda_dim);
 
     interpolate_bicubic_kernel::launch(
         &output.client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         address_type!(input, output),
         vector_size,
         input.into_tensor_arg(),

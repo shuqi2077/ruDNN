@@ -1,18 +1,18 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::tiling::tile::{Plane, RowWise, Tile};
 
 use crate::attention::kernel_ir::components::tile::matmul::{self as attn_matmul, AttentionTileMatmul};
 use crate::attention::kernel_ir::definition::AttentionPartitionSize;
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 /// Holds the per-partition output accumulator tiles. For the cmma path each
 /// tile is a `Tile::Bounce`, which carries its own smem + WhiteboxFragment internally.
 pub struct OutputPartition<Acc: Float> {
     sequence: Sequence<Tile<Acc, Plane, ReadWrite>>,
 }
 
-#[cube]
+#[ruda]
 impl<Acc: Float> OutputPartition<Acc> {
     pub fn new(
         #[comptime] partition_size: AttentionPartitionSize,

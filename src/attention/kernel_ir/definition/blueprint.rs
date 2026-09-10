@@ -1,11 +1,11 @@
 use ruda_kernel::tiling::TileSize;
-use ruda_kernel::tiling::cube_count::{Count3d, CubeCountPlan};
+use ruda_kernel::tiling::ruda_count::{Count3d, RudaCountPlan};
 
-use crate::attention::kernel_ir::definition::{AttentionDims, AttentionVectorSizes, HypercubeBlueprint};
+use crate::attention::kernel_ir::definition::{AttentionDims, AttentionVectorSizes, HyperrudaBlueprint};
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AttentionBlueprint {
-    pub hypercube_blueprint: HypercubeBlueprint,
+    pub hyperruda_blueprint: HyperrudaBlueprint,
 
     pub tiling_scheme: AttentionTilingScheme,
     pub plane_dim: u32,
@@ -21,25 +21,25 @@ pub struct AttentionBlueprint {
 }
 
 impl AttentionBlueprint {
-    /// Build the [CubeCountPlan] for an attention problem, with 2D conceptual
-    /// axes `(seq_q_cubes, batch * num_heads)` (z is unused).
-    pub fn cube_count_plan(
+    /// Build the [RudaCountPlan] for an attention problem, with 2D conceptual
+    /// axes `(seq_q_rudas, batch * num_heads)` (z is unused).
+    pub fn ruda_count_plan(
         &self,
         dims: &AttentionDims,
-        max_cube_count: &(u32, u32, u32),
-    ) -> CubeCountPlan {
-        let seq_q_cubes = (dims.seq_q as u32).div_ceil(
+        max_ruda_count: &(u32, u32, u32),
+    ) -> RudaCountPlan {
+        let seq_q_rudas = (dims.seq_q as u32).div_ceil(
             self.tiling_scheme.tile_size.seq_q
                 * self.tiling_scheme.partition_size.seq_q
                 * self.tiling_scheme.stage_size.seq_q,
         );
         let batch_heads = (dims.batch * dims.num_heads) as u32;
         let target_count = Count3d {
-            x: seq_q_cubes,
+            x: seq_q_rudas,
             y: batch_heads,
             z: 1,
         };
-        CubeCountPlan::from_blueprint(&self.hypercube_blueprint, target_count, max_cube_count)
+        RudaCountPlan::from_blueprint(&self.hyperruda_blueprint, target_count, max_ruda_count)
     }
 }
 

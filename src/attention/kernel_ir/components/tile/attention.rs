@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use std::{fmt::Debug, hash::Hash};
 
 use ruda_kernel::dsl::ir::features::MmaConfig;
@@ -6,7 +6,7 @@ use ruda_kernel::dsl::ir::DeviceProperties;
 use ruda_kernel::dsl::ir::VectorSize;
 use rublas::kernel_ir::definition::MatmulAvailabilityError;
 use ruda_kernel::tiling::tile::{InnerLayout, MaskLayout, SoftmaxKind};
-use ruda_kernel::tiling::{CubeDimResource, InvalidConfigError};
+use ruda_kernel::tiling::{RudaDimResource, InvalidConfigError};
 
 use crate::attention::kernel_ir::components::tile::matmul::AttentionTileMatmul;
 use crate::attention::kernel_ir::definition::{
@@ -112,10 +112,10 @@ impl TileAttentionKind {
     }
 
     /// Returns the compute resources required.
-    pub fn computation_resources(&self) -> Result<CubeDimResource, InvalidConfigError> {
+    pub fn computation_resources(&self) -> Result<RudaDimResource, InvalidConfigError> {
         Ok(match self {
-            TileAttentionKind::Unit => CubeDimResource::Units(1),
-            TileAttentionKind::BlackboxAccelerated => CubeDimResource::Planes(1),
+            TileAttentionKind::Unit => RudaDimResource::Units(1),
+            TileAttentionKind::BlackboxAccelerated => RudaDimResource::Planes(1),
         })
     }
 

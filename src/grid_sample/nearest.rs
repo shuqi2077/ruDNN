@@ -1,13 +1,13 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::{
-    dsl::{calculate_cube_count_elemwise, prelude::*},
+    dsl::{calculate_ruda_count_elemwise, prelude::*},
     library::FastDivmod,
     tensor::{RudaTensor, allocation::empty_device_dtype, layout::address_type},
 };
 use ruda_core::tensor::{Shape, spatial::GridSampleOptions};
 use super::base::{PaddingMode, fetch_with_border, reflect_coord};
 
-#[cube]
+#[ruda]
 fn rounded<F: Float>(value: F) -> F {
     let value = select(value != value, F::new(0.0), value);
     let absolute = value.abs();
@@ -16,7 +16,7 @@ fn rounded<F: Float>(value: F) -> F {
     select(value < F::new(0.0), -magnitude, magnitude)
 }
 
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 fn nearest_kernel<F: Float>(
     input: &Tensor<F>,
     grid: &Tensor<F>,
@@ -86,10 +86,10 @@ pub(super) fn launch<R: Runtime>(input: RudaTensor<R>, grid: RudaTensor<R>, opti
     let count = batch * out_h * out_w;
     let mut spatial = SequenceArg::new();
     for size in [batch, out_h, out_w] { spatial.push(size); }
-    let cube_dim = CubeDim::new(input.client.properties(), count);
-    let cube_count = calculate_cube_count_elemwise(&input.client, count, cube_dim);
+    let ruda_dim = RudaDim::new(input.client.properties(), count);
+    let ruda_count = calculate_ruda_count_elemwise(&input.client, count, ruda_dim);
     let dtype = input.dtype;
-    nearest_kernel::launch(&output.client, cube_count, cube_dim, address_type!(input, grid, output),
+    nearest_kernel::launch(&output.client, ruda_count, ruda_dim, address_type!(input, grid, output),
         input.into_tensor_arg(), grid.into_tensor_arg(), output.clone().into_tensor_arg(),
         spatial, options.align_corners, options.padding_mode.into(), dtype.into());
     output

@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::{Runtime, prelude::*};
 use ruda_kernel::tensor::{RudaTensor, allocation::empty_device_dtype, contiguous::into_contiguous};
 use ruda_core::tensor::{Shape, TensorMetadata};
@@ -7,7 +7,7 @@ use super::common::{SHARED_ALPHA_CAPACITY, empty_input_nll, finalize_nll, l_prim
 /// Fused CTC alpha + beta recursion kernel.
 ///
 /// Runs the full forward alpha recursion and reverse beta recursion for one
-/// batch element per cube, reusing the same shared-memory layout twice.
+/// batch element per ruda, reusing the same shared-memory layout twice.
 /// Writes `alpha_out[T, N, 2S+1]`, `beta_out[T, N, 2S+1]` and the per-sample
 /// negative log-likelihood `nll_out[N]`. The three outputs are everything the
 /// default CTC gradient-composition helper needs, so the caller can finish the
@@ -18,7 +18,7 @@ use super::common::{SHARED_ALPHA_CAPACITY, empty_input_nll, finalize_nll, l_prim
 /// initialize at `t = input_len - 1` from `log_probs[t, l'[s]]` at the two
 /// boundary `s` positions, then step backward reading `beta[t+1, s]`,
 /// `beta[t+1, s+1]`, and (when the skip transition is allowed) `beta[t+1, s+2]`.
-#[cube(launch)]
+#[ruda(launch)]
 fn ctc_alpha_beta_kernel<F: Float, I: Numeric>(
     log_probs: &Tensor<F>,      // [T, N, C]
     targets: &Tensor<I>,        // [N, S_max]
@@ -31,8 +31,8 @@ fn ctc_alpha_beta_kernel<F: Float, I: Numeric>(
     #[comptime] alpha_capacity: u32,
     #[define(F, I)] _dtypes: [StorageType; 2],
 ) {
-    let n = CUBE_POS_X as usize;
-    let cube_dim = CUBE_DIM_X as usize;
+    let n = RUDA_POS_X as usize;
+    let ruda_dim = RUDA_DIM_X as usize;
     let alpha_cap = alpha_capacity as usize;
     let blank_u = blank as usize;
 
@@ -91,9 +91,9 @@ fn ctc_alpha_beta_kernel<F: Float, I: Numeric>(
         }
         state[s] = init;
         alpha_out[n * ao_n + s * ao_s] = init;
-        s += cube_dim;
+        s += ruda_dim;
     }
-    sync_cube();
+    sync_ruda();
 
     for t in 1..input_len {
         let mut s = UNIT_POS_X as usize;
@@ -127,17 +127,17 @@ fn ctc_alpha_beta_kernel<F: Float, I: Numeric>(
                 unreachable_threshold,
                 one,
             );
-            s += cube_dim;
+            s += ruda_dim;
         }
-        sync_cube();
+        sync_ruda();
 
         let mut s = UNIT_POS_X as usize;
         while s < l_prime_len {
             state[s] = state[alpha_cap + s];
             alpha_out[t * ao_t + n * ao_n + s * ao_s] = state[s];
-            s += cube_dim;
+            s += ruda_dim;
         }
-        sync_cube();
+        sync_ruda();
     }
 
     if UNIT_POS_X == 0 {
@@ -158,7 +158,7 @@ fn ctc_alpha_beta_kernel<F: Float, I: Numeric>(
 
     // Fence thread 0's read of state[2*target_len] / state[2*target_len - 1]
     // against the beta boundary init, which writes those same positions.
-    sync_cube();
+    sync_ruda();
 
     // Beta phase (reverse).
     //
@@ -177,9 +177,9 @@ fn ctc_alpha_beta_kernel<F: Float, I: Numeric>(
         }
         state[s] = init;
         beta_out[t_last * bo_t + n * bo_n + s * bo_s] = init;
-        s += cube_dim;
+        s += ruda_dim;
     }
-    sync_cube();
+    sync_ruda();
 
     // Step back from t = input_len - 2 down to t = 0.
     for t_rev in 1..input_len {
@@ -216,17 +216,17 @@ fn ctc_alpha_beta_kernel<F: Float, I: Numeric>(
                 unreachable_threshold,
                 one,
             );
-            s += cube_dim;
+            s += ruda_dim;
         }
-        sync_cube();
+        sync_ruda();
 
         let mut s = UNIT_POS_X as usize;
         while s < l_prime_len {
             state[s] = state[alpha_cap + s];
             beta_out[t * bo_t + n * bo_n + s * bo_s] = state[s];
-            s += cube_dim;
+            s += ruda_dim;
         }
-        sync_cube();
+        sync_ruda();
     }
 }
 
@@ -267,8 +267,8 @@ pub fn ctc_alpha_beta<R: Runtime>(
         SHARED_ALPHA_CAPACITY,
     );
 
-    let hw_max = log_probs.client.properties().hardware.max_cube_dim.0;
-    let cube_dim_x = (max_l_prime as u32).min(hw_max).min(256);
+    let hw_max = log_probs.client.properties().hardware.max_ruda_dim.0;
+    let ruda_dim_x = (max_l_prime as u32).min(hw_max).min(256);
 
     let client = log_probs.client.clone();
     let device = log_probs.device.clone();
@@ -297,13 +297,13 @@ pub fn ctc_alpha_beta<R: Runtime>(
     let nll_out =
         empty_device_dtype::<R>(client.clone(), device, Shape::new([batch_size]), f_dtype);
 
-    let cube_count = CubeCount::Static(batch_size as u32, 1, 1);
-    let cube_dim = CubeDim::new_1d(cube_dim_x);
+    let ruda_count = RudaCount::Static(batch_size as u32, 1, 1);
+    let ruda_dim = RudaDim::new_1d(ruda_dim_x);
 
     ctc_alpha_beta_kernel::launch::<R>(
         &client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         log_probs.into_tensor_arg(),
         targets.into_tensor_arg(),
         input_lengths.into_tensor_arg(),

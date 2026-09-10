@@ -1,8 +1,8 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use {super::bilinear_interpolate, super::deform_im2col, super::index};
 use {ruda_kernel::dsl::Runtime, ruprim::elementwise::cast::cast, ruda_kernel::tensor::contiguous::into_contiguous_aligned, rublas::tensor_matmul::MatmulStrategy, rublas::tensor_matmul::matmul, ruprim::reduce::tensor::reduce_dim, ruprim::indexing::slice_assign, ruda_kernel::tensor::layout::address_type, ruda_kernel::tensor::layout::decompose_linear, ruda_kernel::tensor::allocation::empty_device_dtype, ruda_kernel::tensor::initialization::zeros_client, ruda_kernel::tensor::reshape::reshape, ruda_kernel::tensor::permutation::swap_dims, ruda_kernel::tensor::RudaTensor};
 use {ruda_core::tensor::DType, ruda_core::tensor::Shape, ruda_core::tensor::TensorMetadata, ruda_core::tensor::spatial::DeformConvOptions};
-use {ruda_kernel::dsl::CubeDim, ruda_kernel::dsl::CubeLaunch, ruda_kernel::dsl::calculate_cube_count_elemwise, ruda_kernel::dsl::cube, ruda_core::ir::features::AtomicUsage, ruda_kernel::dsl::ir::FloatKind, ruda_kernel::dsl::prelude::*, ruda_kernel::library::FastDivmod, ruda_kernel::library::tensor::layout::linear::LinearView};
+use {ruda_kernel::dsl::RudaDim, ruda_kernel::dsl::RudaLaunch, ruda_kernel::dsl::calculate_ruda_count_elemwise, ruda_kernel::dsl::ruda, ruda_core::ir::features::AtomicUsage, ruda_kernel::dsl::ir::FloatKind, ruda_kernel::dsl::prelude::*, ruda_kernel::library::FastDivmod, ruda_kernel::library::tensor::layout::linear::LinearView};
 use {crate::convolution::components::ConvSetupError};
 use {ruprim::reduce::components::instructions::ReduceOperationConfig};
 use {std::marker::PhantomData};
@@ -224,15 +224,15 @@ fn compute_offset_and_mask_gradient<R: Runtime>(
         .map(|mask| empty_device_dtype(client.clone(), device.clone(), mask.shape(), mask.dtype));
 
     let num_elements_offset = offset.meta.num_elements();
-    let cube_dim = CubeDim::new(image.client.properties(), num_elements_offset);
-    let cube_count = calculate_cube_count_elemwise(&image.client, num_elements_offset, cube_dim);
+    let ruda_dim = RudaDim::new(image.client.properties(), num_elements_offset);
+    let ruda_count = calculate_ruda_count_elemwise(&image.client, num_elements_offset, ruda_dim);
 
     let dtype: StorageType = image.dtype.into();
     unsafe {
         deform_col2img_coord_kernel::launch_unchecked(
             &grad_offset.client,
-            cube_count,
-            cube_dim,
+            ruda_count,
+            ruda_dim,
             address_type!(image, offset, mask, grad_offset, grad_mask),
             image.into_tensor_arg(),
             offset.into_tensor_arg(),
@@ -262,7 +262,7 @@ fn compute_offset_and_mask_gradient<R: Runtime>(
     Ok((grad_offset, grad_mask))
 }
 
-#[derive(CubeLaunch, CubeType)]
+#[derive(RudaLaunch, RudaType)]
 struct DeformConv2dCol2ImgCoordArgs {
     stride_h: usize,
     stride_w: usize,
@@ -276,7 +276,7 @@ struct DeformConv2dCol2ImgCoordArgs {
 }
 
 #[allow(clippy::collapsible_if)]
-#[cube(launch_unchecked, address_type = "dynamic")]
+#[ruda(launch_unchecked, address_type = "dynamic")]
 fn deform_col2img_coord_kernel<F: Float>(
     image: &Tensor<F>,
     offset: &Tensor<F>,
@@ -389,7 +389,7 @@ fn deform_col2img_coord_kernel<F: Float>(
     }
 }
 
-#[cube]
+#[ruda]
 fn get_coordinate_weight<F: Float>(
     input: &Tensor<F>,
     offset: usize,
@@ -482,8 +482,8 @@ fn compute_input_grad<R: Runtime>(
     let grad_arg = grad_in.clone().into_tensor_arg();
 
     let num_elements = columns.meta.num_elements();
-    let cube_dim = CubeDim::new(offset.client.properties(), num_elements);
-    let cube_count = calculate_cube_count_elemwise(&offset.client, num_elements, cube_dim);
+    let ruda_dim = RudaDim::new(offset.client.properties(), num_elements);
+    let ruda_count = calculate_ruda_count_elemwise(&offset.client, num_elements, ruda_dim);
 
     let launch = match supports_fadd {
         true => deform_col2img_kernel::launch_unchecked::<IntrinsicFloatAtomicAddFamily, R>,
@@ -498,8 +498,8 @@ fn compute_input_grad<R: Runtime>(
     unsafe {
         launch(
             &grad_in.client,
-            cube_count,
-            cube_dim,
+            ruda_count,
+            ruda_dim,
             address_type!(offset, mask, columns, grad_in),
             offset.into_tensor_arg(),
             mask.map(|mask| mask.into_tensor_arg()).into(),
@@ -528,7 +528,7 @@ fn compute_input_grad<R: Runtime>(
     })
 }
 
-#[derive(CubeLaunch, CubeType)]
+#[derive(RudaLaunch, RudaType)]
 struct DeformConv2dCol2ImgArgs {
     stride_h: usize,
     stride_w: usize,
@@ -541,7 +541,7 @@ struct DeformConv2dCol2ImgArgs {
     kernel_width: usize,
 }
 
-#[cube(launch_unchecked, address_type = "dynamic")]
+#[ruda(launch_unchecked, address_type = "dynamic")]
 fn deform_col2img_kernel<F: Float, FP: Float, FAdd: FloatAtomicAddFamily>(
     offset: &Tensor<F>,
     mask: &ComptimeOption<Tensor<F>>,
@@ -633,25 +633,25 @@ fn deform_col2img_kernel<F: Float, FP: Float, FAdd: FloatAtomicAddFamily>(
 
 type ProxyType<FADF, FP> = <<FADF as FloatAtomicAddFamily>::Op<FP> as FloatAtomicAdd>::ProxyType;
 
-#[cube]
+#[ruda]
 trait FloatAtomicAddFamily: Send + Sync + 'static {
     type Op<ProxyType: Float>: FloatAtomicAdd;
 }
 
-#[cube]
+#[ruda]
 trait FloatAtomicAdd: Send + Sync + 'static {
     type ProxyType: Numeric;
 
     fn float_atomic_add<F: Float>(ptr: &mut Atomic<Self::ProxyType>, value: F);
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 struct IntrinsicFloatAtomicAdd<F: Float> {
-    #[cube(comptime)]
+    #[ruda(comptime)]
     _ty: PhantomData<F>,
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 struct CASFloatAtomicAdd;
 
 struct IntrinsicFloatAtomicAddFamily;
@@ -664,7 +664,7 @@ impl FloatAtomicAddFamily for CASFloatAtomicAdd {
     type Op<ProxyType: Float> = Self;
 }
 
-#[cube]
+#[ruda]
 impl<FAdd: Float> FloatAtomicAdd for IntrinsicFloatAtomicAdd<FAdd> {
     type ProxyType = FAdd;
 
@@ -674,7 +674,7 @@ impl<FAdd: Float> FloatAtomicAdd for IntrinsicFloatAtomicAdd<FAdd> {
     }
 }
 
-#[cube]
+#[ruda]
 impl FloatAtomicAdd for CASFloatAtomicAdd {
     type ProxyType = u32;
 

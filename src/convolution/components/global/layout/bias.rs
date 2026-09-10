@@ -1,18 +1,18 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::library::tensor::launch::BufferArg;
 use ruda_kernel::library::tensor::layout::*;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::launch::ViewLayoutLaunchArg;
 use rublas::kernel_ir::launch::BatchedCoords;
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct BiasLayout {
     shape: u32,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     vector_size: u32,
 }
 
-#[cube]
+#[ruda]
 impl Layout for BiasLayout {
     type Coordinates = BatchedCoords;
     type SourceCoordinates = Coords1d;
@@ -54,7 +54,7 @@ impl ViewLayoutLaunchArg for BiasLayout {
         _: &Self::CompilationArg,
         ty: Type,
         builder: &mut KernelBuilder,
-    ) -> <Self as CubeType>::ExpandType {
+    ) -> <Self as RudaType>::ExpandType {
         BiasLayoutExpand {
             shape: <u32 as LaunchArg>::expand(&(), builder),
             vector_size: ty.vector_size() as u32,

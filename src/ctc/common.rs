@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
 /// Maximum `2 * max_target_len + 1` the kernel supports. The alpha/beta state is
@@ -11,7 +11,7 @@ pub(super) const SHARED_ALPHA_CAPACITY: u32 = 8192;
 
 /// Class label at position `s` of the blank-inserted label sequence `l'`.
 /// Odd `s` reads the underlying target at index `(s-1)/2`; even `s` is a blank.
-#[cube]
+#[ruda]
 pub(super) fn l_prime_class<I: Numeric>(
     s: usize,
     targets: &Tensor<I>,
@@ -40,7 +40,7 @@ pub(super) fn l_prime_class<I: Numeric>(
 /// reachable states get misclassified as unreachable. Mitigation is a
 /// WGSL-only path with a smaller sentinel; WGSL spec 8.7 lets implementations
 /// replace runtime `1/0` with zero, so `-inf` can't be synthesized reliably.
-#[cube]
+#[ruda]
 pub(super) fn log_sum_exp2<F: Float>(a: F, b: F, unreachable_threshold: F, one: F) -> F {
     let mut mx = a;
     let mut mn = b;
@@ -59,7 +59,7 @@ pub(super) fn log_sum_exp2<F: Float>(a: F, b: F, unreachable_threshold: F, one: 
 /// the three values from the previous time row (alpha: `t-1`; beta: `t+1`).
 /// `log_p` is the emission log-prob at the current `(t, l'[s])` and
 /// `skip_allowed` toggles the 2-position skip transition.
-#[cube]
+#[ruda]
 pub(super) fn recurrence_step<F: Float>(
     near: F,
     near_m1: F,
@@ -84,7 +84,7 @@ pub(super) fn recurrence_step<F: Float>(
 /// it via `is_inf`. Builds the overflow arithmetically from a runtime-dependent
 /// value (`target_len`, guaranteed >= 1 here) to keep WGSL's comptime-overflow
 /// validator quiet.
-#[cube]
+#[ruda]
 pub(super) fn finalize_nll<F: Float>(
     last_blank: F,
     last_label: F,
@@ -108,7 +108,7 @@ pub(super) fn finalize_nll<F: Float>(
 /// Value to emit when `input_len == 0`. `target_len == 0` is the only case
 /// with a valid alignment (P(empty | empty) = 1, nll = 0); otherwise the
 /// target is unreachable and the output is `+inf` synthesized via overflow.
-#[cube]
+#[ruda]
 pub(super) fn empty_input_nll<F: Float>(target_len: usize) -> F {
     if target_len == 0 {
         F::new(0.0)

@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::r#virtual::VirtualTensor;
 use rublas::kernel_ir::{
@@ -23,7 +23,7 @@ pub struct SimpleGlobalAttention<AP: AttentionPrecision, SA: StageAttention<AP>>
     _phantom: PhantomData<(AP, SA)>,
 }
 
-#[cube]
+#[ruda]
 impl<
     SA: StageAttention<
             AP,
@@ -84,7 +84,7 @@ impl<
             key_reader.load_stage(&mut barrier, config.key_reader_config);
             value_reader.load_stage(&mut barrier, config.value_reader_config);
 
-            sync_cube();
+            sync_ruda();
 
             // Core of flash attention
             SA::execute(
@@ -101,7 +101,7 @@ impl<
                 config.stage_config,
             );
 
-            sync_cube();
+            sync_ruda();
 
             // Advance in seq_kv direction
             key_reader.advance_view();

@@ -35,7 +35,7 @@ pub(super) const SMALL_CHANNEL_IN_THRESHOLD: usize = 4;
 /// empirically: classic ImageNet first-layer (`3 -> 64`) runs ~5x slower on
 /// the direct path than on gemm, so we cap at 16 to stay safely on the right
 /// side of that cliff. Sobel-style filters (`3 -> 3..8`) are well under this
-/// and keep their 1.1-1.4x win over burn-ndarray.
+/// and keep their 1.1-1.4x win over ruda-tensor-host.
 pub(super) const SMALL_CHANNEL_OUT_THRESHOLD: usize = 16;
 
 /// Decide whether to use the small-channel fast path.
@@ -231,4 +231,3 @@ where
         dtype,
     )
 }
-

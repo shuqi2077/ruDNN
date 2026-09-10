@@ -1,7 +1,7 @@
 //! Activation function operations for the Flex backend.
 //!
 //! Each activation is implemented as a single-pass unary operation,
-//! replacing the default multi-op compositions from Burn's trait defaults.
+//! replacing the default multi-op compositions from Ruda's trait defaults.
 
 use alloc::vec;
 use alloc::vec::Vec;
@@ -186,8 +186,8 @@ pub use fused_layer_norm::*;
 // chunk boundaries, non-contiguous input handling, the flex-internal
 // layer_norm op (no public API yet), and dtype-specific fused softmax
 // paths (f16/bf16/f64). Plain activation/softmax smoke tests have been
-// migrated to burn-backend-tests so they cover every backend. When adding
+// migrated to ruda-backend-tests so they cover every backend. When adding
 // new tests, keep them here only if they probe flex internals; otherwise
-// add them to crates/burn-backend-tests/tests/tensor/float/activation/.
+// add them to crates/ruda-backend-tests/tests/tensor/float/activation/.
 #[cfg(test)]
 mod tests;

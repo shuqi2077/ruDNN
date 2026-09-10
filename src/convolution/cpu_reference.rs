@@ -5,7 +5,7 @@
 //! same input bits from `(seed_lhs, seed_rhs)`, so their outputs are directly
 //! comparable.
 
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_test_utils::TestRuntime;
 use ruda_kernel::dsl::client::ComputeClient;
 use ruda_kernel::dsl::ir::AddressType;

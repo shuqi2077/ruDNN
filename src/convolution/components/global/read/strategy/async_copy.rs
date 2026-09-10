@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::barrier::copy_async_checked;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::View;
@@ -15,7 +15,7 @@ use crate::convolution::components::{ConvolutionOperation, global::args::Runtime
 pub(crate) const ASYNC_COPY_WIDTH: u32 = 128;
 
 /// Custom version of async copy to clamp slice on channels, not `k` as a whole.
-#[cube]
+#[ruda]
 #[expect(clippy::overly_complex_bool_expr, reason = "override")]
 pub(crate) fn async_copy_from<EG: Scalar, EGS: Size, ES: Numeric, ESS: Size, T: TilingLayout>(
     view: View<Vector<EG, EGS>, Coords2d>,

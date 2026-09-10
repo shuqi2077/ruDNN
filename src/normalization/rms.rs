@@ -1,6 +1,6 @@
 use super::{NormalizationError, RudaTensor, Runtime};
 use ruda_core::{device::Device, tensor::DType};
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::tensor::{allocation::empty_device_contiguous_dtype, contiguous::into_contiguous};
 
@@ -25,7 +25,7 @@ pub fn rms_norm<R: Runtime>(
         return Err(NormalizationError("RMSNorm gamma must be a same-device F32 feature vector"));
     }
     let plane = input.client.properties().hardware.plane_size_max;
-    let maximum = input.client.properties().hardware.max_cube_dim.0;
+    let maximum = input.client.properties().hardware.max_ruda_dim.0;
     if !plane.is_power_of_two() || plane > maximum {
         return Err(NormalizationError("RMSNorm requires a power-of-two plane"));
     }
@@ -42,7 +42,7 @@ pub fn rms_norm<R: Runtime>(
     let client = input.client.clone();
     let dtype = input.dtype;
     row_rms_norm::launch::<R>(
-        &client, CubeCount::Static(rows as u32, 1, 1), CubeDim::new_1d(threads),
+        &client, RudaCount::Static(rows as u32, 1, 1), RudaDim::new_1d(threads),
         into_contiguous(input).into_array_arg(), into_contiguous(gamma).into_array_arg(),
         output.clone().into_array_arg(), width as u32, epsilon, threads, vectorized,
         include_str!("rms.rs").to_owned(), dtype.into(),
@@ -50,14 +50,14 @@ pub fn rms_norm<R: Runtime>(
     Ok(output)
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 fn row_rms_norm<F: Float>(
     input: &Array<F>, gamma: &Array<f32>, output: &mut Array<F>, width: u32, epsilon: f32,
     #[comptime] threads: u32, #[comptime] vectorized: bool, #[comptime] _source: String,
     #[define(F)] _dtype: StorageType,
 ) {
     let width = width as usize;
-    let base = CUBE_POS_X as usize * width;
+    let base = RUDA_POS_X as usize * width;
     let lane = UNIT_POS as usize;
     let step = threads as usize;
     let mut sums = Array::<f32>::new(4usize);
@@ -97,23 +97,23 @@ fn row_rms_norm<F: Float>(
     let mut sum = ((sums[0] + sums[1]) + sums[2]) + sums[3];
     let mut shared = SharedMemory::<f32>::new(threads as usize);
     shared[lane] = sum;
-    let mut offset = CUBE_DIM / 2;
+    let mut offset = RUDA_DIM / 2;
     while offset >= PLANE_DIM {
-        sync_cube();
+        sync_ruda();
         if lane < offset as usize {
             sum += shared[lane + offset as usize];
             shared[lane] = sum;
         }
         offset /= 2;
     }
-    sync_cube();
+    sync_ruda();
     offset = PLANE_DIM / 2;
     while offset > 0 {
         sum += plane_shuffle_down(sum, offset);
         offset /= 2;
     }
     if lane == 0 { shared[0] = sum / width as f32; }
-    sync_cube();
+    sync_ruda();
     let inverse = (shared[0] + epsilon).inverse_sqrt();
     let mut column = lane;
     while column < width {

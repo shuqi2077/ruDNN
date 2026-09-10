@@ -1,5 +1,5 @@
 use ruda_kernel::dsl::prelude::*;
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::ir::DeviceProperties;
 
 use crate::attention::kernel_ir::{
@@ -32,17 +32,17 @@ pub trait GlobalAttentionFamily: Send + Sync + 'static {
     ) -> Result<Self::Config, AttentionSetupError>;
 }
 
-#[cube]
+#[ruda]
 pub trait GlobalAttention<AP: AttentionPrecision>: 'static + Send + Sync {
     /// Writes to Out at the same offset it loaded Query
     type Writer: AttentionWriter<OS<AP>, OSS<AP>, OG<AP>, OGS<AP>>;
 
     /// Loads to SMEM as is (transposed later)
-    type KeyReader: CubeType;
+    type KeyReader: RudaType;
     /// Loads to SMEM as is
-    type ValueReader: CubeType;
+    type ValueReader: RudaType;
     /// Loads to SMEM as is
-    type MaskReader: CubeType;
+    type MaskReader: RudaType;
 
     /// The configuration type associated with this Attention.
     type Config: GlobalAttentionConfig;
@@ -100,5 +100,5 @@ pub trait GlobalAttentionConfig:
     type StageConfig: StageAttentionConfig;
 
     fn stage_config(&self) -> Self::StageConfig;
-    fn cube_dim(&self) -> CubeDim;
+    fn ruda_dim(&self) -> RudaDim;
 }

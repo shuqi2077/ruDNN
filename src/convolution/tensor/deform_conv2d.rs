@@ -1,12 +1,12 @@
-use ruda_kernel::dsl as cubecl;
-use {ruda_kernel::dsl::calculate_cube_count_elemwise, ruda_kernel::dsl::prelude::*, ruda_kernel::library::FastDivmod};
+use ruda_kernel::dsl as kernel_dsl;
+use {ruda_kernel::dsl::calculate_ruda_count_elemwise, ruda_kernel::dsl::prelude::*, ruda_kernel::library::FastDivmod};
 use {crate::convolution::components::ConvSetupError};
 
 use {ruda_core::tensor::Shape, ruda_core::tensor::spatial::DeformConvOptions};
 
 use {ruda_kernel::dsl::Runtime, ruprim::elementwise::binary::numeric::AddOp, ruda_kernel::tensor::contiguous::into_contiguous_aligned, ruprim::elementwise::binary::numeric::launch_binop, rublas::tensor_matmul::MatmulStrategy, rublas::tensor_matmul::matmul, ruda_kernel::tensor::layout::address_type, ruda_kernel::tensor::initialization::zeros_client, ruda_kernel::tensor::reshape::reshape, ruda_kernel::tensor::permutation::swap_dims, ruda_kernel::tensor::RudaTensor};
 
-#[derive(CubeLaunch, CubeType)]
+#[derive(RudaLaunch, RudaType)]
 struct DeformConv2dArgs {
     conv_stride_h: usize,
     conv_stride_w: usize,
@@ -22,7 +22,7 @@ struct DeformConv2dArgs {
     out_w: usize,
 }
 
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 fn deform_im2col_kernel<F: Float>(
     input: &Tensor<F>,
     offset: &Tensor<F>,
@@ -115,7 +115,7 @@ fn deform_im2col_kernel<F: Float>(
     }
 }
 
-#[cube]
+#[ruda]
 pub(crate) fn bilinear_interpolate<F: Float>(
     input: &Tensor<F>,
     height: usize,
@@ -202,13 +202,13 @@ pub(crate) fn deform_im2col<R: Runtime>(
     let output = zeros_client(client.clone(), device.clone(), shape_out.clone(), dtype);
 
     let num_kernels = in_channels * batch_size * out_height * out_width;
-    let cube_dim = CubeDim::new(input.client.properties(), num_kernels);
-    let cube_count = calculate_cube_count_elemwise(&input.client, num_kernels, cube_dim);
+    let ruda_dim = RudaDim::new(input.client.properties(), num_kernels);
+    let ruda_count = calculate_ruda_count_elemwise(&input.client, num_kernels, ruda_dim);
 
     deform_im2col_kernel::launch(
         &output.client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         address_type!(input, offset, mask, output),
         input.into_tensor_arg(),
         offset.into_tensor_arg(),

@@ -433,7 +433,7 @@ conv_transpose_gemm_typed!(
 // Tests kept here exercise flex-specific dtype storage paths (f64/f16)
 // through the conv_transpose dispatch. Plain conv_transpose shape/stride/
 // padding/groups/dilation/multichannel/batch correctness is covered at
-// the public API level by crates/burn-backend-tests/tests/tensor/float/
+// the public API level by crates/ruda-backend-tests/tests/tensor/float/
 // module/conv_transpose{1,2,3}d.rs, so those tests were removed from here.
 // When adding new tests, keep them here only if they probe flex dtype
 // dispatch or a flex-internal fast path; otherwise add them there.

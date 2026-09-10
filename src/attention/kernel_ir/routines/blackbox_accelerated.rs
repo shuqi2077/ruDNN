@@ -1,7 +1,7 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::client::ComputeClient;
-use ruda_kernel::dsl::prelude::CubePrimitive;
-use ruda_kernel::dsl::CubeDim;
+use ruda_kernel::dsl::prelude::RudaPrimitive;
+use ruda_kernel::dsl::RudaDim;
 use ruda_kernel::dsl::Runtime;
 use rublas::kernel_ir::{
     components::{global::PartitionedStageFamily, stage::StridedStageFamily},
@@ -10,7 +10,7 @@ use rublas::kernel_ir::{
 
 use crate::attention::kernel_ir::definition::{
     AttentionBlueprint, AttentionElems, AttentionPartitionSize, AttentionProblem,
-    AttentionSetupError, AttentionStageSize, AttentionTilingScheme, HypercubeBlueprint,
+    AttentionSetupError, AttentionStageSize, AttentionTilingScheme, HyperrudaBlueprint,
 };
 use crate::attention::kernel_ir::{
     components::stage::plane::PlanePartitionStageAttentionFamily,
@@ -65,16 +65,16 @@ impl Routine for BlackboxAcceleratedRoutine {
         let blueprint = blueprint(problem, device_settings, &dtypes, strategy)?;
 
         let num_planes = blueprint.tiling_scheme.stage_size.seq_q;
-        let cube_dim = CubeDim::new_2d(blueprint.plane_dim, num_planes);
+        let ruda_dim = RudaDim::new_2d(blueprint.plane_dim, num_planes);
 
-        let cube_count_plan =
-            blueprint.cube_count_plan(&problem.dims, &device_settings.max_cube_count);
+        let ruda_count_plan =
+            blueprint.ruda_count_plan(&problem.dims, &device_settings.max_ruda_count);
 
         Ok(LaunchInfo {
             blueprint,
             dtypes,
-            cube_dim,
-            cube_count_plan,
+            ruda_dim,
+            ruda_count_plan,
             address_type: problem.address_type,
         })
     }
@@ -186,7 +186,7 @@ fn blueprint<R: Runtime>(
             };
 
             let blueprint = AttentionBlueprint {
-                hypercube_blueprint: HypercubeBlueprint::builder().build(),
+                hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
                 plane_dim: device.plane_dim,
                 two_rows_in_array_tile: false,
                 vector_sizes: device.vector_sizes.clone(),

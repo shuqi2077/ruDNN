@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::FastDivmod;
 use ruda_kernel::library::tensor::layout::Layout;
@@ -12,7 +12,7 @@ use crate::convolution::components::{
 
 /// Maps a 4D NHWC out tensor of shape `((n, h, w), c)` to a col-major 2D matmul tile with
 /// shape `(m, n)`
-#[derive(CubeType, CubeLaunch, Clone)]
+#[derive(RudaType, RudaLaunch, Clone)]
 pub struct OutLayout {
     /// Shape of DHW
     pub shape_out: Sequence<FastDivmod<u32>>,
@@ -23,11 +23,11 @@ pub struct OutLayout {
     pub cols: u32,
 
     /// Global memory config for the backing tensor
-    #[cube(comptime)]
+    #[ruda(comptime)]
     pub config: GlobalLayoutConfig,
 }
 
-#[cube]
+#[ruda]
 impl OutLayout {
     pub fn new(
         rows: u32,
@@ -44,7 +44,7 @@ impl OutLayout {
     }
 }
 
-#[cube]
+#[ruda]
 impl Layout for OutLayout {
     type Coordinates = BatchedCoords;
     type SourceCoordinates = NhwcCoords;

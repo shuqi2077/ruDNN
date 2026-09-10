@@ -1,14 +1,14 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
-#[derive(CubeType, Clone)]
+#[derive(RudaType, Clone)]
 struct Moments {
     mean: f32,
     m2: f32,
     count: f32,
 }
 
-#[cube]
+#[ruda]
 fn combine(left: Moments, right: Moments) -> Moments {
     let count = left.count + right.count;
     let mut mean = 0f32;
@@ -28,7 +28,7 @@ fn combine(left: Moments, right: Moments) -> Moments {
     Moments { mean, m2, count }
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn layer_norm<F: Float>(
     input: &Array<F>,
     gamma: &Array<f32>,
@@ -40,10 +40,10 @@ pub(crate) fn layer_norm<F: Float>(
     #[comptime] _source: String,
     #[define(F)] _dtype: StorageType,
 ) {
-    let row = CUBE_POS_X as usize;
+    let row = RUDA_POS_X as usize;
     let width = width as usize;
     let thread = UNIT_POS as usize;
-    let threads = CUBE_DIM as usize;
+    let threads = RUDA_DIM as usize;
     let mut moments = Moments {
         mean: 0.0,
         m2: 0.0,
@@ -92,7 +92,7 @@ pub(crate) fn layer_norm<F: Float>(
             variances[slot] = moments.m2;
             counts[slot] = moments.count;
         }
-        sync_cube();
+        sync_ruda();
         if UNIT_POS_X == 0 && warp < offset as usize {
             let combined = combine(
                 moments.clone(),
@@ -106,14 +106,14 @@ pub(crate) fn layer_norm<F: Float>(
             moments.m2 = combined.m2;
             moments.count = combined.count;
         }
-        sync_cube();
+        sync_ruda();
         offset /= 2;
     }
     if UNIT_POS == 0 {
         means[0] = moments.mean;
         variances[0] = moments.m2 / width as f32;
     }
-    sync_cube();
+    sync_ruda();
     let mean = means[0];
     let inverse_std = (variances[0] + epsilon).inverse_sqrt();
     let mut column = thread;

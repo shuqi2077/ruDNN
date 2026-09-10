@@ -182,7 +182,7 @@ pub(super) fn conv_plane_accumulate_oh_outer<T: num_traits::Float + Copy>(
 ) {
     // An empty plane or zero-width output is a trivial no-op. This also
     // guards the divide below against `out_w == 0`, which is not reachable
-    // from the in-tree callers (burn's `calculate_conv_output_size` is
+    // from the in-tree callers (ruda's `calculate_conv_output_size` is
     // always >= 1 for valid inputs) but would otherwise panic if some
     // future caller handed us a degenerate slice.
     if out_plane.is_empty() || out_w == 0 {
@@ -457,4 +457,3 @@ where
         dtype,
     )
 }
-

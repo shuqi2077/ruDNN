@@ -1,7 +1,7 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use {ruda_kernel::dsl::Runtime, crate::convolution::tensor::batches_per_run, ruda_kernel::tensor::contiguous::into_contiguous_aligned, rublas::tensor_matmul::MatmulStrategy, rublas::tensor_matmul::matmul, ruprim::indexing::slice, ruda_kernel::tensor::layout::address_type, ruda_kernel::tensor::layout::decompose_linear, ruda_kernel::tensor::layout::shape_divmod, ruda_kernel::tensor::allocation::empty_device_dtype, ruda_kernel::tensor::reshape::reshape, ruda_kernel::tensor::permutation::swap_dims, ruda_kernel::tensor::RudaTensor};
 use {ruda_core::tensor::Shape, ruda_core::tensor::spatial::ConvTransposeOptions, ruda_core::tensor::spatial::calculate_conv_transpose_output_size};
-use {ruda_kernel::dsl::calculate_cube_count_elemwise, ruda_kernel::dsl::prelude::*, ruda_kernel::library::FastDivmod, ruda_kernel::library::tensor::layout::linear::LinearView};
+use {ruda_kernel::dsl::calculate_ruda_count_elemwise, ruda_kernel::dsl::prelude::*, ruda_kernel::library::FastDivmod, ruda_kernel::library::tensor::layout::linear::LinearView};
 use {crate::convolution::components::ConvSetupError};
 
 /// Perform a 2D convolution transposition using the GEMM (col2im) algorithm.
@@ -174,15 +174,15 @@ fn col2im<R: Runtime>(
 
     let num_elems = out.meta.num_elements();
 
-    let cube_dim = CubeDim::new(columns.client.properties(), num_elems);
-    let cube_count = calculate_cube_count_elemwise(&columns.client, num_elems, cube_dim);
+    let ruda_dim = RudaDim::new(columns.client.properties(), num_elems);
+    let ruda_count = calculate_ruda_count_elemwise(&columns.client, num_elems, ruda_dim);
 
     let shape = shape_divmod(&out);
     unsafe {
         col2im_kernel::launch_unchecked(
             &columns.client.clone(),
-            cube_count,
-            cube_dim,
+            ruda_count,
+            ruda_dim,
             address_type!(columns, bias, out),
             columns.into_tensor_arg(),
             bias.map(|bias| bias.into_tensor_arg()).into(),
@@ -207,7 +207,7 @@ fn col2im<R: Runtime>(
     Ok(())
 }
 
-#[derive(CubeLaunch, CubeType)]
+#[derive(RudaLaunch, RudaType)]
 struct Col2ImArgs {
     out_h: usize,
     out_w: usize,
@@ -223,7 +223,7 @@ struct Col2ImArgs {
     stride_w: usize,
 }
 
-#[cube(launch_unchecked, address_type = "dynamic")]
+#[ruda(launch_unchecked, address_type = "dynamic")]
 fn col2im_kernel<E: Numeric>(
     columns: &Tensor<E>,
     bias: &ComptimeOption<Tensor<E>>,

@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
 use crate::attention::kernel_ir::components::stage::SharedPartitionAttentionConfig;
@@ -17,7 +17,7 @@ pub type UnitPartitionAttention<AP, SK, SV, SO> =
 
 pub struct UnitPartitioner {}
 
-#[cube]
+#[ruda]
 impl AttentionPartitioner for UnitPartitioner {
     type Writer<ES: Float, ESS: Size, EG: Float, EGS: Size> = UnitAttentionWriter<ES, ESS, EG, EGS>;
 

@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::tiling::tile::StridedTile;
 
@@ -8,13 +8,13 @@ use crate::attention::kernel_ir::{
     {components::tile::TileAttention, definition::attention_types::QGS},
 };
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 /// Query input to the Tile Attention
 pub struct QueryTile<AP: AttentionPrecision, TA: TileAttention<AP>> {
     pub fragment: TA::Query,
 }
 
-#[cube]
+#[ruda]
 impl<AP: AttentionPrecision, TA: TileAttention<AP>> QueryTile<AP, TA> {
     pub fn new(#[comptime] config: TA::Config) -> QueryTile<AP, TA> {
         QueryTile::<AP, TA> {

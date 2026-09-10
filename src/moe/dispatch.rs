@@ -1,7 +1,7 @@
 use super::{MoeError, RoutingPlan, elements, empty, float_tensor, kernels, same_device};
 use ruda_core::tensor::{DType, Shape};
 use ruda_kernel::{
-    dsl::{Runtime, calculate_cube_count_elemwise, prelude::CubeDim},
+    dsl::{Runtime, calculate_ruda_count_elemwise, prelude::RudaDim},
     tensor::{RudaTensor, contiguous::into_contiguous},
 };
 
@@ -43,37 +43,37 @@ impl<R: Runtime> RoutingPlan<R> {
         let slot_rows = empty(&input, [rows], DType::U32);
         let row_experts = empty(&input, [rows], DType::U32);
         let values = empty(&input, [rows, hidden], input.dtype);
-        let dim = CubeDim::new(input.client.properties(), self.experts);
+        let dim = RudaDim::new(input.client.properties(), self.experts);
         kernels::dispatch::clear_counts::launch::<R>(
             &input.client,
-            calculate_cube_count_elemwise(&input.client, self.experts, dim),
+            calculate_ruda_count_elemwise(&input.client, self.experts, dim),
             dim,
             counts.clone().into_array_arg(),
         );
         if rows != 0 {
-            let dim = CubeDim::new(input.client.properties(), rows);
+            let dim = RudaDim::new(input.client.properties(), rows);
             kernels::dispatch::count_routes::launch::<R>(
                 &input.client,
-                calculate_cube_count_elemwise(&input.client, rows, dim),
+                calculate_ruda_count_elemwise(&input.client, rows, dim),
                 dim,
                 self.indices.clone().into_array_arg(),
                 counts.clone().into_array_arg(),
                 ranks.clone().into_array_arg(),
             );
         }
-        let dim = CubeDim::new(input.client.properties(), 1);
+        let dim = RudaDim::new(input.client.properties(), 1);
         kernels::dispatch::prefix::launch::<R>(
             &input.client,
-            calculate_cube_count_elemwise(&input.client, 1, dim),
+            calculate_ruda_count_elemwise(&input.client, 1, dim),
             dim,
             counts.into_array_arg(),
             offsets.clone().into_array_arg(),
         );
         if rows != 0 {
-            let dim = CubeDim::new(input.client.properties(), rows);
+            let dim = RudaDim::new(input.client.properties(), rows);
             kernels::dispatch::scatter_routes::launch::<R>(
                 &input.client,
-                calculate_cube_count_elemwise(&input.client, rows, dim),
+                calculate_ruda_count_elemwise(&input.client, rows, dim),
                 dim,
                 self.indices.clone().into_array_arg(),
                 ranks.into_array_arg(),
@@ -83,10 +83,10 @@ impl<R: Runtime> RoutingPlan<R> {
                 row_experts.clone().into_array_arg(),
             );
             let input = into_contiguous(input);
-            let dim = CubeDim::new(input.client.properties(), size);
+            let dim = RudaDim::new(input.client.properties(), size);
             kernels::dispatch::gather::launch::<R>(
                 &input.client,
-                calculate_cube_count_elemwise(&input.client, size, dim),
+                calculate_ruda_count_elemwise(&input.client, size, dim),
                 dim,
                 input.clone().into_array_arg(),
                 sorted_slots.into_array_arg(),
@@ -146,10 +146,10 @@ impl<R: Runtime> DispatchedTokens<R> {
         );
         if size != 0 {
             let expert_output = into_contiguous(expert_output);
-            let dim = CubeDim::new(output.client.properties(), size);
+            let dim = RudaDim::new(output.client.properties(), size);
             kernels::dispatch::combine::launch::<R>(
                 &output.client,
-                calculate_cube_count_elemwise(&output.client, size, dim),
+                calculate_ruda_count_elemwise(&output.client, size, dim),
                 dim,
                 expert_output.into_array_arg(),
                 self.routing.weights.clone().into_array_arg(),

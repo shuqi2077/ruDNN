@@ -1,5 +1,5 @@
-use ruda_kernel::dsl as cubecl;
-use ruda_kernel::dsl::CubeDim;
+use ruda_kernel::dsl as kernel_dsl;
+use ruda_kernel::dsl::RudaDim;
 use rublas::kernel_ir::components::global::{
     GlobalReaderConfig, GlobalWriterConfig, memory::GlobalMemoryConfig,
 };
@@ -19,8 +19,8 @@ pub struct SimpleGlobalAttentionConfig<S: StageAttentionConfig> {
 impl<S: StageAttentionConfig> GlobalAttentionConfig for SimpleGlobalAttentionConfig<S> {
     type StageConfig = S;
 
-    fn cube_dim(&self) -> CubeDim {
-        CubeDim::new_2d(
+    fn ruda_dim(&self) -> RudaDim {
+        RudaDim::new_2d(
             self.stage_config.plane_dim(),
             self.stage_config.num_planes(),
         )

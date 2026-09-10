@@ -2,7 +2,7 @@ use crate::attention::kernel_ir::{
     definition::attention_types::{MSK, MSKS},
     definition::{AttentionPrecision, AttentionTileSize},
 };
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::View;
 use ruda_kernel::library::tensor::layout::Coords2d;
@@ -13,14 +13,14 @@ use ruda_kernel::tiling::tile::StridedTile;
 
 use crate::attention::kernel_ir::components::stage::{AttentionPartitioner, StageAttentionConfig};
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct LogicalIterator {
     row: u32,
     col: RuntimeCell<u32>,
     step_col: u32,
 }
 
-#[cube]
+#[ruda]
 impl LogicalIterator {
     fn init(stage_q_offset: u32, step_col: u32) -> LogicalIterator {
         LogicalIterator {
@@ -39,23 +39,23 @@ impl LogicalIterator {
     }
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct MaterializedMaskReader<M: Numeric, N: Size> {
     global_iter: GlobalIterator<Vector<M, N>>,
     logical_iter: LogicalIterator,
     // TODO not sure if mandatory, but i need for the stride when reading in global memory
     seq_kv_shape: u32,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     gmem_config: GlobalMemoryConfig,
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub enum MaskReader<AP: AttentionPrecision> {
     Materialized(MaterializedMaskReader<MSK<AP>, MSKS<AP>>),
     Logical(LogicalIterator),
 }
 
-#[cube]
+#[ruda]
 impl<AP: AttentionPrecision> MaskReader<AP> {
     pub fn new_logical(partition_q_offset: u32, step: u32) -> Self {
         MaskReader::<AP>::new_Logical(LogicalIterator::init(partition_q_offset, step))
@@ -117,7 +117,7 @@ impl<AP: AttentionPrecision> MaskReader<AP> {
     }
 }
 
-#[cube]
+#[ruda]
 impl<M: Numeric, N: Size> MaterializedMaskReader<M, N> {
     fn new(
         global_iter: GlobalIterator<Vector<M, N>>,

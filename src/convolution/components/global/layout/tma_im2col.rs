@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::FastDivmod;
 use ruda_kernel::library::tensor::layout::CoordsDyn;
@@ -11,19 +11,19 @@ use crate::convolution::components::{
 };
 
 /// Im2col layout, producing both the position and offset
-#[derive(CubeType, CubeLaunch)]
+#[derive(RudaType, RudaLaunch)]
 pub struct TmaIm2colLayout {
     shape_out: Sequence<FastDivmod<u32>>,
     padded_channels: FastDivmod<u32>,
     rows: u32,
     cols: u32,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     params: ConvolutionParams,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     check_kernel: bool,
 }
 
-#[cube]
+#[ruda]
 impl TmaIm2colLayout {
     pub fn new(
         shape_out: Sequence<FastDivmod<u32>>,
@@ -44,7 +44,7 @@ impl TmaIm2colLayout {
     }
 }
 
-#[cube]
+#[ruda]
 impl Layout for TmaIm2colLayout {
     type Coordinates = BatchedCoords;
     type SourceCoordinates = (NhwcCoords, CoordsDyn);
@@ -132,7 +132,7 @@ impl Layout for TmaIm2colLayout {
 
 /// Decompose a linear index into local positions along each dimension in `shape`. Also returns the
 /// left over remainder.
-#[cube]
+#[ruda]
 pub(crate) fn div_mod_seq(pos: u32, shape: &Sequence<FastDivmod<u32>>) -> (u32, Sequence<u32>) {
     let rank = shape.len().comptime();
     let mut offs = pos;

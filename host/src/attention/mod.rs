@@ -323,7 +323,7 @@ pub use naive::*;
 // dtype-specific kernels (f16/f64). Generic attention semantics (causal,
 // custom scale, softcap, cross-attention, bool mask, additive bias,
 // multi-batch/multi-head, single-element) live in
-// crates/burn-backend-tests/tests/tensor/float/module/attention.rs, which
+// crates/ruda-backend-tests/tests/tensor/float/module/attention.rs, which
 // exercises every backend. When adding new tests, keep them here only if
 // they probe flex internals; otherwise add them to that suite.
 #[cfg(test)]

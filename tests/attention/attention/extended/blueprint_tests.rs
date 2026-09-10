@@ -1,11 +1,11 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use crate::{attention::extended::utils::tiling_scheme_ops::*, attention::launcher::test_launch};
 use ruda_kernel::dsl::ir::AddressType;
 use ruda_kernel::dsl::Runtime;
 use ruda_test_runtime::TestRuntime;
 use rudnn::attention::kernel_ir::definition::{
     AccumulatorPrecision, AttentionDims, AttentionOptions, AttentionPartitionSize,
-    AttentionProblem, AttentionStageSize, AttentionTilingScheme, HypercubeBlueprint,
+    AttentionProblem, AttentionStageSize, AttentionTilingScheme, HyperrudaBlueprint,
 };
 use rudnn::attention::kernel_ir::routines::DeviceSettings;
 
@@ -47,7 +47,7 @@ fn one_tile_simple() {
     let launch_settings = DeviceSettings::new(&client, &problem);
 
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -105,7 +105,7 @@ fn one_tile_hd_neq_vd() {
     let launch_settings = DeviceSettings::new(&client, &problem);
 
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -158,7 +158,7 @@ fn partition_hd_neq_vd() {
     let launch_settings = DeviceSettings::new(&client, &problem);
 
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -211,7 +211,7 @@ fn one_tile_several_planes() {
     let launch_settings = DeviceSettings::new(&client, &problem);
 
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -264,7 +264,7 @@ fn problem_smaller_than_one_tile_seq_q_seq_kv_val_dim() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -311,7 +311,7 @@ fn two_rows_in_array_tile() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: true,
@@ -359,7 +359,7 @@ fn one_tile_seqq16() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -407,7 +407,7 @@ fn one_tile_seqq4() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -454,7 +454,7 @@ fn seqq2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -501,7 +501,7 @@ fn kv2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -548,7 +548,7 @@ fn hd2_vd2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -595,7 +595,7 @@ fn all2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -643,7 +643,7 @@ fn global_iterations_2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -691,7 +691,7 @@ fn global_iterations_2_kv2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -739,7 +739,7 @@ fn partition_kv1_global1_with_oob() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -787,7 +787,7 @@ fn partition_seqq2_global2_kv2_global2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -834,7 +834,7 @@ fn partition_many_planes() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -882,7 +882,7 @@ fn partition_kv1_global3_with_oob() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -929,7 +929,7 @@ fn partition_oob_in_q_with_batches() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -976,7 +976,7 @@ fn partition_kv2_with_oob() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1023,7 +1023,7 @@ fn partition_kv2_causal() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1070,7 +1070,7 @@ fn partition_kv2_masked() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1117,7 +1117,7 @@ fn stage2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1164,7 +1164,7 @@ fn stage4() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1213,7 +1213,7 @@ fn stage2_problem4() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1260,7 +1260,7 @@ fn double_row_wise() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: true,
@@ -1307,7 +1307,7 @@ fn one_tile_masked() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1354,7 +1354,7 @@ fn one_tile_causal() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1401,7 +1401,7 @@ fn one_tile_masked_causal() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1449,7 +1449,7 @@ fn masked_oob() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1497,7 +1497,7 @@ fn masked_larger() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1544,7 +1544,7 @@ fn num_heads_2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1591,7 +1591,7 @@ fn batch_2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1638,7 +1638,7 @@ fn batch_2_seqq2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1685,7 +1685,7 @@ fn num_heads_2_batch_2() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1732,7 +1732,7 @@ fn num_heads_2_masked() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1784,7 +1784,7 @@ fn huge_problem() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,
@@ -1834,7 +1834,7 @@ fn causal_several_heads() {
     };
     let launch_settings = DeviceSettings::new(&client, &problem);
     let blueprint = AttentionBlueprint {
-        hypercube_blueprint: HypercubeBlueprint::builder().build(),
+        hyperruda_blueprint: HyperrudaBlueprint::builder().build(),
         tiling_scheme,
         plane_dim: launch_settings.plane_dim,
         two_rows_in_array_tile: false,

@@ -1,10 +1,10 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::ir::DeviceProperties;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::r#virtual::VirtualTensor;
 
 use crate::attention::kernel_ir::definition::{
-    AttentionElems, AttentionPrecision, AttentionSetupError, CubeMapping, CubeMappingLaunch,
+    AttentionElems, AttentionPrecision, AttentionSetupError, RudaMapping, RudaMappingLaunch,
     InputRuntimeArg, OutputRuntimeArg,
 };
 use crate::attention::kernel_ir::{
@@ -31,12 +31,12 @@ pub trait BatchAttentionFamily: Send + Sync + 'static {
     #[allow(clippy::too_many_arguments)]
     unsafe fn launch_unchecked<AA: AttentionArgs, R: Runtime>(
         client: &ComputeClient<R>,
-        cube_dim: CubeDim,
-        cube_count: CubeCount,
+        ruda_dim: RudaDim,
+        ruda_count: RudaCount,
         address_type: AddressType,
         input: InputRuntimeArg<AA, R>,
         output: OutputRuntimeArg<AA, R>,
-        cube_mapping: CubeMappingLaunch<R>,
+        ruda_mapping: RudaMappingLaunch<R>,
         dtypes: &AttentionElems,
         vector_sizes: &AttentionVectorSizes,
         attention_blueprint: Self::Blueprint,
@@ -52,7 +52,7 @@ pub trait BatchAttentionFamily: Send + Sync + 'static {
     ) -> Result<Self::Config, AttentionSetupError>;
 }
 
-#[cube]
+#[ruda]
 pub trait BatchAttention<AP: AttentionPrecision>: 'static + Send + Sync {
     /// The configuration type associated with this Attention.
     type Config: BatchAttentionConfig;
@@ -63,7 +63,7 @@ pub trait BatchAttention<AP: AttentionPrecision>: 'static + Send + Sync {
         value: VirtualTensor<VG<AP>, VGS<AP>>,
         mask: ComptimeOption<VirtualTensor<MSK<AP>, MSKS<AP>>>,
         out: VirtualTensor<OG<AP>, OGS<AP>, ReadWrite>,
-        cube_mapping: CubeMapping,
+        ruda_mapping: RudaMapping,
         #[comptime] config: Self::Config,
     );
 }
@@ -76,5 +76,5 @@ pub trait BatchAttentionConfig:
 
     fn global_config(&self) -> Self::GlobalConfig;
 
-    fn cube_dim(&self) -> CubeDim;
+    fn ruda_dim(&self) -> RudaDim;
 }

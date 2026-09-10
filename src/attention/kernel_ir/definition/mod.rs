@@ -1,13 +1,13 @@
 mod base;
 mod blueprint;
 mod error;
-mod hypercube;
+mod hyperruda;
 mod spec;
 mod vectorization;
 
 pub use base::*;
 pub use blueprint::*;
 pub use error::*;
-pub use hypercube::*;
+pub use hyperruda::*;
 pub use spec::*;
 pub use vectorization::*;

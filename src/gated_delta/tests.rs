@@ -185,7 +185,7 @@ fn chunk_prefill_matches_recurrence_and_preserves_initial_state() {
 #[test]
 #[ignore = "requires RUDA_QWEN35_PREFIX_REFERENCE exported from the pinned real decay trace"]
 fn real_decay_prefix_matches_cuda_reference() {
-    use ruda_kernel::dsl::prelude::{CubeCount, CubeDim};
+    use ruda_kernel::dsl::prelude::{RudaCount, RudaDim};
     let path = std::path::PathBuf::from(std::env::var("RUDA_QWEN35_PREFIX_REFERENCE").unwrap());
     let read = |name| std::fs::read(path.join(name)).unwrap().chunks_exact(4)
         .map(|bytes| f32::from_le_bytes(bytes.try_into().unwrap())).collect::<Vec<_>>();
@@ -201,7 +201,7 @@ fn real_decay_prefix_matches_cuda_reference() {
         let output = empty_device_contiguous_dtype(source.client.clone(), source.device.clone(),
             [heads, chunk].into(), DType::F32);
         super::chunk_kernel::prefix::launch::<TestRuntime>(&source.client,
-            CubeCount::Static(heads as u32, 1, 1), CubeDim::new_1d((tile / 2) as u32),
+            RudaCount::Static(heads as u32, 1, 1), RudaDim::new_1d((tile / 2) as u32),
             source.clone().into_array_arg(), output.clone().into_array_arg(),
             sequence as u32, start as u32, chunk, tile, include_str!("chunk_kernel.rs").to_owned());
         let actual = floats(output);
@@ -250,7 +250,7 @@ fn real_chunk_intermediate_diagnosis() {
 #[test]
 #[ignore = "requires RUDA_QWEN35_CHUNK_TRACE with original triangular inputs and inverses"]
 fn real_triangular_inverse_matches_reference() {
-    use ruda_kernel::dsl::prelude::{CubeCount, CubeDim};
+    use ruda_kernel::dsl::prelude::{RudaCount, RudaDim};
     let path = std::path::PathBuf::from(std::env::var("RUDA_QWEN35_CHUNK_TRACE").unwrap());
     let read = |name| std::fs::read(path.join(name)).unwrap().chunks_exact(4)
         .map(|b| f32::from_le_bytes(b.try_into().unwrap())).collect::<Vec<_>>();
@@ -259,7 +259,7 @@ fn real_triangular_inverse_matches_reference() {
         let input = into_contiguous(tensor(read(format!("{index}-triangular.f32")),[16,64,64],DType::F32));
         let output = empty_device_contiguous_dtype(input.client.clone(),input.device.clone(),[16,64,64].into(),DType::F32);
         super::chunk_kernel::triangular_inverse::launch::<TestRuntime>(&input.client,
-            CubeCount::Static(16,1,1),CubeDim::new_1d(32),input.clone().into_array_arg(),
+            RudaCount::Static(16,1,1),RudaDim::new_1d(32),input.clone().into_array_arg(),
             output.clone().into_array_arg(),64,include_str!("chunk_kernel.rs").to_owned());
         let actual = floats(output);
         let expected = read(format!("{index}-inverse.f32"));
@@ -274,7 +274,7 @@ fn real_triangular_inverse_matches_reference() {
 #[test]
 #[ignore = "requires RUDA_QWEN35_CHUNK_TRACE and RUDA_QWEN35_CHUNK_PRODUCTS; matmul diagnosis and exact mask gate"]
 fn real_products_and_decay_mask_isolation() {
-    use ruda_kernel::dsl::prelude::CubeDim;
+    use ruda_kernel::dsl::prelude::RudaDim;
     use ruda_kernel::tensor::permutation::swap_dims;
     let trace = std::path::PathBuf::from(std::env::var("RUDA_QWEN35_CHUNK_TRACE").unwrap());
     let products = std::path::PathBuf::from(std::env::var("RUDA_QWEN35_CHUNK_PRODUCTS").unwrap());
@@ -300,8 +300,8 @@ fn real_products_and_decay_mask_isolation() {
             assert_eq!(actual,expected_products);
             let fixed = into_contiguous(tensor(expected_products,[16,64,64],DType::F32));
             let output = empty_device_contiguous_dtype(key.client.clone(),key.device.clone(),[16,64,64].into(),DType::F32);
-            let dim = CubeDim::new(key.client.properties(),16*64*64);
-            let count = calculate_cube_count_elemwise(&key.client,16*64*64,dim);
+            let dim = RudaDim::new(key.client.properties(),16*64*64);
+            let count = calculate_ruda_count_elemwise(&key.client,16*64*64,dim);
             super::chunk_kernel::decay_mask::launch::<TestRuntime>(&key.client,count,dim,
                 fixed.into_array_arg(),cumulative.clone().into_array_arg(),output.clone().into_array_arg(),
                 64,strict,include_str!("chunk_kernel.rs").to_owned());

@@ -1,7 +1,7 @@
 //! Shared helpers for the basic tier.
 
-use ruda_kernel::dsl as cubecl;
-use ruda_kernel::dsl::prelude::CubePrimitive;
+use ruda_kernel::dsl as kernel_dsl;
+use ruda_kernel::dsl::prelude::RudaPrimitive;
 use rublas::kernel_ir::{
     components::stage::PartitionBuffering,
     definition::{MatmulElems, MatmulGlobalElems, TilingScheme},

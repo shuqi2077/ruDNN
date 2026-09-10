@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use std::marker::PhantomData;
 
 use ruda_kernel::dsl::ir::DeviceProperties;

@@ -1,7 +1,7 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn softmax<F: Float>(
     logits: &Array<F>,
     probabilities: &mut Array<f32>,
@@ -35,7 +35,7 @@ pub(crate) fn softmax<F: Float>(
     }
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 pub(crate) fn topk<F: Float>(
     probabilities: &Array<f32>,
     indices: &mut Array<u32>,

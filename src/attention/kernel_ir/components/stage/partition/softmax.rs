@@ -1,11 +1,11 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::tiling::tile::{Plane, RowWise, SoftmaxKind, Tile, softmax_init_state};
 
 use crate::attention::kernel_ir::components::tile::matmul::{self as attn_matmul, AttentionTileMatmul};
 use crate::attention::kernel_ir::{components::tile::MaskTile, definition::AttentionPartitionSize};
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 /// Holds the per-partition score and softmaxed tiles. For the cmma path each
 /// tile is a `Tile::Bounce`, which encapsulates the smem + WhiteboxFragment bouncing
 /// internally.
@@ -14,7 +14,7 @@ pub struct SoftmaxPartition<Acc: Float, Lhs: Float> {
     softmaxed_tiles: Sequence<Tile<Lhs, Plane, ReadWrite>>,
 }
 
-#[cube]
+#[ruda]
 impl<Acc: Float, Lhs: Float> SoftmaxPartition<Acc, Lhs> {
     pub fn new(
         #[comptime] partition_size: AttentionPartitionSize,
@@ -70,7 +70,7 @@ impl<Acc: Float, Lhs: Float> SoftmaxPartition<Acc, Lhs> {
     }
 }
 
-#[cube]
+#[ruda]
 pub fn init_running_state<Acc: Float>(
     #[comptime] softmax_kind: SoftmaxKind,
 ) -> (RowWise<Acc>, RowWise<Acc>) {

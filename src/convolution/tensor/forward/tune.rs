@@ -2,7 +2,7 @@ use {ruda_core::tensor::spatial::ConvOptions};
 use {ruda_kernel::dsl::ir::StorageType, ruda_kernel::dsl::tune::LocalTuner, ruda_kernel::dsl::tune::Tunable, ruda_kernel::dsl::tune::TunableSet, ruda_kernel::dsl::tune::anchor};
 use {crate::convolution::AcceleratedTileKind};
 
-use {crate::convolution::tensor::tune_key::ConvTuneKey, ruda_kernel::dsl::Runtime, ruda_kernel::dsl::CubeTuneId, crate::convolution::tensor::ConvAutotuneKey, crate::convolution::tensor::conv_direct, crate::convolution::tensor::conv_im2col_1x1, crate::convolution::tensor::forward::implicit_gemm::*, ruda_kernel::tensor::RudaTensor};
+use {crate::convolution::tensor::tune_key::ConvTuneKey, ruda_kernel::dsl::Runtime, ruda_kernel::dsl::RudaTuneId, crate::convolution::tensor::ConvAutotuneKey, crate::convolution::tensor::conv_direct, crate::convolution::tensor::conv_im2col_1x1, crate::convolution::tensor::forward::implicit_gemm::*, ruda_kernel::tensor::RudaTensor};
 
 /// Executes autotune on convolution operations
 pub fn conv_autotune<R: Runtime, const N: usize>(
@@ -13,7 +13,7 @@ pub fn conv_autotune<R: Runtime, const N: usize>(
 ) -> RudaTensor<R> {
     let client = input.client.clone();
 
-    static TUNER: LocalTuner<ConvTuneKey, CubeTuneId> = LocalTuner::new("burn_cubecl::kernel::conv::forward::tune::strict_f32_v1");
+    static TUNER: LocalTuner<ConvTuneKey, RudaTuneId> = LocalTuner::new("ruda_tensor_device::kernel::conv::forward::tune::strict_f32_v1");
 
     let tunables = TUNER.init(|| {
         TunableSet::new(create_key::<R, N>, create_conv_input::<R, N>)
@@ -66,7 +66,7 @@ pub fn conv_autotune<R: Runtime, const N: usize>(
     });
 
     TUNER.execute(
-        &CubeTuneId::new(&input.client, &input.device),
+        &RudaTuneId::new(&input.client, &input.device),
         &client,
         tunables,
         (input, weight, bias, options),

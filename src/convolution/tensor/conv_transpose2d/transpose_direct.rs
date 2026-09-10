@@ -1,10 +1,10 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use {ruda_kernel::dsl::Runtime, ruda_kernel::tensor::layout::address_type, ruda_kernel::tensor::layout::decompose_linear, ruda_kernel::tensor::layout::shape_divmod, ruda_kernel::tensor::allocation::empty_device_dtype, ruda_kernel::tensor::RudaTensor};
 use {ruda_core::tensor::Shape, ruda_core::tensor::spatial::ConvTransposeOptions};
-use {ruda_kernel::dsl::calculate_cube_count_elemwise, ruda_kernel::dsl::prelude::*, ruda_kernel::library::FastDivmod, ruda_kernel::library::tensor::layout::linear::LinearView};
+use {ruda_kernel::dsl::calculate_ruda_count_elemwise, ruda_kernel::dsl::prelude::*, ruda_kernel::library::FastDivmod, ruda_kernel::library::tensor::layout::linear::LinearView};
 use {crate::convolution::components::ConvSetupError};
 
-#[derive(CubeLaunch, CubeType)]
+#[derive(RudaLaunch, RudaType)]
 struct ConvArgs {
     conv_stride_0: usize,
     conv_stride_1: usize,
@@ -15,7 +15,7 @@ struct ConvArgs {
     groups: usize,
 }
 
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 fn conv_transpose2d_direct_kernel<E: Numeric>(
     input: &Tensor<E>,
     weight: &Tensor<E>,
@@ -148,14 +148,14 @@ pub fn conv_transpose2d_direct<R: Runtime>(
     );
 
     let num_elems = output.meta.num_elements();
-    let cube_dim = CubeDim::new(input.client.properties(), num_elems);
-    let cube_count = calculate_cube_count_elemwise(&input.client, num_elems, cube_dim);
+    let ruda_dim = RudaDim::new(input.client.properties(), num_elems);
+    let ruda_count = calculate_ruda_count_elemwise(&input.client, num_elems, ruda_dim);
     let dtype = input.dtype;
 
     conv_transpose2d_direct_kernel::launch(
         &output.client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         address_type!(input, weight, bias, output),
         input.into_tensor_arg(),
         weight.into_tensor_arg(),

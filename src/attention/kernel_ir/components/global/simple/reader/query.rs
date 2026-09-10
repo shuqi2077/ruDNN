@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::Swizzle;
 use ruda_kernel::library::tensor::View;
@@ -12,14 +12,14 @@ use crate::attention::kernel_ir::{
     definition::{AttentionPrecision, AttentionTileSize},
 };
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct QueryReader<AP: AttentionPrecision> {
     query: View<Vector<QG<AP>, QGS<AP>>, Coords2d>,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     gmem_config: GlobalMemoryConfig,
 }
 
-#[cube]
+#[ruda]
 impl<AP: AttentionPrecision> QueryReader<AP> {
     pub fn new(
         stage_q_offset: u32,

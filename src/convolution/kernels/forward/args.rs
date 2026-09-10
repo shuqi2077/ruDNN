@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::Runtime;
 use ruda_kernel::dsl::client::ComputeClient;
 use ruda_kernel::dsl::prelude::*;
@@ -112,7 +112,7 @@ pub trait ConcreteOutputFactory<A: Routine<RuntimeArgs>>: LaunchArg {
     ) -> Self::RuntimeArg<R>;
 }
 
-impl<Lhs: CubePrimitive, Rhs: CubePrimitive, EO: CubePrimitive, A: Routine<RuntimeArgs>>
+impl<Lhs: RudaPrimitive, Rhs: RudaPrimitive, EO: RudaPrimitive, A: Routine<RuntimeArgs>>
     ConcreteInputsFactory<A> for TensorInputs<Lhs, Rhs, EO>
 {
     fn create<R: Runtime>(
@@ -182,7 +182,7 @@ impl<Lhs: CubePrimitive, Rhs: CubePrimitive, EO: CubePrimitive, A: Routine<Runti
     }
 }
 
-impl<EG: CubePrimitive, A: Routine<RuntimeArgs>> ConcreteOutputFactory<A> for TensorOutput<EG> {
+impl<EG: RudaPrimitive, A: Routine<RuntimeArgs>> ConcreteOutputFactory<A> for TensorOutput<EG> {
     fn create<R: Runtime>(
         out: TensorBinding<R>,
         blueprint: &A::Blueprint,
@@ -201,9 +201,9 @@ impl<EG: CubePrimitive, A: Routine<RuntimeArgs>> ConcreteOutputFactory<A> for Te
 }
 
 impl<
-    Lhs: CubePrimitive,
-    Rhs: CubePrimitive,
-    EO: CubePrimitive,
+    Lhs: RudaPrimitive,
+    Rhs: RudaPrimitive,
+    EO: RudaPrimitive,
     A: Routine<RuntimeArgs, Blueprint = TilingBlueprint>,
 > ConcreteInputsFactory<A> for TensorMapInputs<Lhs, Rhs, EO>
 {

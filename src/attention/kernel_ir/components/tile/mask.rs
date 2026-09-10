@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::library::tensor::layout::Coordinates;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::layout::Coords2d;
@@ -16,7 +16,7 @@ pub struct MaskConfig {
     pub materialized: bool,
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 /// Mask tile for Tile Attention. It is an additive mask: the result of `apply`
 /// should be added, not multiplied.
 pub enum MaskTile<F: Float> {
@@ -26,7 +26,7 @@ pub enum MaskTile<F: Float> {
     Logical(LogicalTileMask),
 }
 
-#[cube]
+#[ruda]
 impl<F: Float> MaskTile<F> {
     pub fn new(
         out_of_bounds: ComptimeOption<Coords2d>,
@@ -67,7 +67,7 @@ impl<F: Float> MaskTile<F> {
     }
 }
 
-#[cube]
+#[ruda]
 impl<F: Float> Mask for MaskTile<F> {
     fn should_mask(&self, local_pos: Coords2d) -> bool {
         match self {
@@ -77,7 +77,7 @@ impl<F: Float> Mask for MaskTile<F> {
     }
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 /// Origin of the logical mask, updated when changing partition or tile within
 /// partition.
 pub struct LogicalIterOrigin {
@@ -85,7 +85,7 @@ pub struct LogicalIterOrigin {
     col: RuntimeCell<u32>,
 }
 
-#[cube]
+#[ruda]
 impl LogicalIterOrigin {
     fn init() -> LogicalIterOrigin {
         LogicalIterOrigin {
@@ -104,17 +104,17 @@ impl LogicalIterOrigin {
     }
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct LogicalTileMask {
     logical_iter_origin: LogicalIterOrigin,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     causal: bool,
     out_of_bounds: ComptimeOption<Coords2d>,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     fragment_layout: MaskLayout,
 }
 
-#[cube]
+#[ruda]
 impl LogicalTileMask {
     pub fn new(
         #[comptime] config: MaskConfig,
@@ -149,13 +149,13 @@ impl LogicalTileMask {
     }
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct MaterializedTileMask<F: Float> {
     fragment: Tile<F, Plane, ReadWrite>,
     logical_mask: LogicalTileMask,
 }
 
-#[cube]
+#[ruda]
 impl<F: Float> MaterializedTileMask<F> {
     pub fn should_mask(&self, local_pos: Coords2d) -> bool {
         let logical_masked = self.logical_mask.should_mask(local_pos);

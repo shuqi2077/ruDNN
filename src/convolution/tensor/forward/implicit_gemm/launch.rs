@@ -4,7 +4,7 @@ use {crate::convolution::AcceleratedTileKind, crate::convolution::ConvAlgorithm,
 use {rublas::kernel_ir::definition::MatmulElems, rublas::kernel_ir::definition::MatmulGlobalElems};
 use {ruda_kernel::tiling::InputBinding};
 
-/// Perform a 2D convolution using the implicit GEMM (im2col) algorithm, using cubecl tiling matmul
+/// Perform a 2D convolution using the implicit GEMM (im2col) algorithm, using ruda tiling matmul
 /// components. Uses [`CmmaLargeMAlgorithm`] for the stage size
 ///
 /// * `input` - The input feature map
@@ -53,7 +53,7 @@ pub fn conv_gemm_simple_async<R: Runtime, const N: usize>(
     launch_convolution_forward::<R, N>(&strategy, input, weight, bias, options)
 }
 
-/// Perform a 2D convolution using the implicit GEMM (im2col) algorithm, using cubecl tiling matmul
+/// Perform a 2D convolution using the implicit GEMM (im2col) algorithm, using ruda tiling matmul
 /// components. Uses [`CmmaLargeMAlgorithm`] for the stage size
 ///
 /// * `input` - The input feature map
@@ -79,7 +79,7 @@ pub fn conv_gemm_simple_tma<R: Runtime, const N: usize>(
     )
 }
 
-/// Perform a 2D convolution using the implicit GEMM (im2col) algorithm, using cubecl tiling matmul
+/// Perform a 2D convolution using the implicit GEMM (im2col) algorithm, using ruda tiling matmul
 /// components, using the specified algorithm.
 ///
 /// * `input` - The input feature map

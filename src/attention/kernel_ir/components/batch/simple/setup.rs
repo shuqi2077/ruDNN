@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use std::marker::PhantomData;
 
 use ruda_kernel::dsl::ir::AddressType;
@@ -16,7 +16,7 @@ use crate::attention::kernel_ir::{
     },
     definition::{
         AttentionBlueprint, AttentionElems, AttentionPrecision, AttentionSetupError,
-        AttentionVectorSizes, CubeMappingLaunch, InputRuntimeArg, OutputRuntimeArg,
+        AttentionVectorSizes, RudaMappingLaunch, InputRuntimeArg, OutputRuntimeArg,
         launch_types::*,
     },
     launch::AttentionArgs,
@@ -33,12 +33,12 @@ impl<GA: GlobalAttentionFamily> BatchAttentionFamily for SimpleBatchAttentionFam
 
     unsafe fn launch_unchecked<'a, AA: AttentionArgs, R: ruda_kernel::dsl::Runtime>(
         client: &ruda_kernel::dsl::prelude::ComputeClient<R>,
-        cube_dim: ruda_kernel::dsl::CubeDim,
-        cube_count: ruda_kernel::dsl::CubeCount,
+        ruda_dim: ruda_kernel::dsl::RudaDim,
+        ruda_count: ruda_kernel::dsl::RudaCount,
         address_type: AddressType,
         input: InputRuntimeArg<AA, R>,
         output: OutputRuntimeArg<AA, R>,
-        cube_mapping: CubeMappingLaunch<R>,
+        ruda_mapping: RudaMappingLaunch<R>,
         dtypes: &AttentionElems,
         vector_sizes: &AttentionVectorSizes,
         blueprint: Self::Blueprint,
@@ -46,12 +46,12 @@ impl<GA: GlobalAttentionFamily> BatchAttentionFamily for SimpleBatchAttentionFam
         unsafe {
             attention::launch_unchecked::<AA, QG, QGS, KG, KGS, VG, VGS, MSK, MSKS, OG, OGS, Self, R>(
                 client,
-                cube_count,
-                cube_dim,
+                ruda_count,
+                ruda_dim,
                 address_type,
                 input,
                 output,
-                cube_mapping,
+                ruda_mapping,
                 blueprint,
                 dtypes.clone(),
                 dtypes.into(),

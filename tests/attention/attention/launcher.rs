@@ -1,7 +1,7 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use crate::attention::assert_result;
 use ruda_test_runtime::TestRuntime;
-use ruda_kernel::dsl::prelude::CubePrimitive as _;
+use ruda_kernel::dsl::prelude::RudaPrimitive as _;
 use ruda_kernel::dsl::zspace::Shape;
 use rudnn::attention::kernel_ir::{
     definition::{AttentionElems, AttentionIdent, AttentionOptions, AttentionProblem},

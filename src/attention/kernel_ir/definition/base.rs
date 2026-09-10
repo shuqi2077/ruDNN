@@ -1,7 +1,7 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::Runtime;
 use ruda_kernel::dsl::client::ComputeClient;
-use ruda_kernel::dsl::frontend::CubePrimitive;
+use ruda_kernel::dsl::frontend::RudaPrimitive;
 use ruda_kernel::dsl::ir::AddressType;
 use ruda_kernel::dsl::ir::ElemType;
 use ruda_kernel::dsl::ir::FloatKind;

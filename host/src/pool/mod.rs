@@ -227,7 +227,7 @@ fn convert_f32_to_bf16(tensor: &HostTensor) -> HostTensor {
 // (f16/bf16/f64), the backward kernels (max/avg/adaptive), and flex's
 // count_include_pad avg_pool2d semantics. Plain forward-pass pool tests
 // (max/avg/adaptive 2d, pool1d/3d delegation) live in
-// crates/burn-backend-tests/tests/tensor/float/module/{maxpool,avgpool,
+// crates/ruda-backend-tests/tests/tensor/float/module/{maxpool,avgpool,
 // adaptive_avgpool}*.rs and run on every backend.
 #[cfg(test)]
 mod tests;

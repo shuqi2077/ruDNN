@@ -5,7 +5,7 @@
 //! - [`cpu_reference_result`] runs the naive flash-attention-v2 reference on
 //!   the same seeded inputs and returns its output as a [`HostData`].
 
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use core::f32;
 
 use ruda_test_utils::TestRuntime;

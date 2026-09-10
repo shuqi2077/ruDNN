@@ -1,5 +1,5 @@
 use ruda_kernel::dsl::prelude::*;
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 
 use rublas::kernel_ir::components::global::{GlobalWriterConfig, PartitionedStage, WriteEventListener};
 
@@ -13,7 +13,7 @@ pub use unit::*;
 
 use crate::attention::kernel_ir::components::stage::StageAttentionConfig;
 
-#[cube]
+#[ruda]
 pub trait AttentionWriter<ES: Numeric, ESS: Size, EG: Numeric, EGS: Size>:
     WriteEventListener
 {

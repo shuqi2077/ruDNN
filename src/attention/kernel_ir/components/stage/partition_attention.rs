@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use rublas::kernel_ir::components::{
     global::{WriteEvent, WriteEventListener},
@@ -26,13 +26,13 @@ use crate::attention::kernel_ir::{
 };
 use ruda_kernel::library::tensor::layout::Coords2d;
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct PartitionAttention<AP: AttentionPrecision, SK, SV, SO, P: AttentionPartitioner> {
-    #[cube(comptime)]
+    #[ruda(comptime)]
     _phantom: PhantomData<(AP, SK, SV, SO, P)>,
 }
 
-#[cube]
+#[ruda]
 impl<
     AP: AttentionPrecision,
     SK: Stage<KS<AP>, ReadOnly>,

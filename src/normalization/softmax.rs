@@ -1,6 +1,6 @@
 use super::{NormalizationError, RudaTensor, Runtime};
 use ruda_core::tensor::DType;
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::tensor::{allocation::empty_device_contiguous_dtype, contiguous::into_contiguous};
 
@@ -16,7 +16,7 @@ pub fn softmax_last_axis<R: Runtime>(input: RudaTensor<R>) -> Result<RudaTensor<
         return Err(NormalizationError("softmax requires an unquantized F32 tensor with a nonempty last axis"));
     }
     let plane = input.client.properties().hardware.plane_size_max;
-    if !plane.is_power_of_two() || plane > input.client.properties().hardware.max_cube_dim.0 {
+    if !plane.is_power_of_two() || plane > input.client.properties().hardware.max_ruda_dim.0 {
         return Err(NormalizationError("softmax requires a power-of-two plane"));
     }
     let output = empty_device_contiguous_dtype(input.client.clone(), input.device.clone(), shape.clone().into(), DType::F32);
@@ -24,17 +24,17 @@ pub fn softmax_last_axis<R: Runtime>(input: RudaTensor<R>) -> Result<RudaTensor<
     if rows == 0 { return Ok(output); }
     let client = input.client.clone();
     row_softmax::launch::<R>(
-        &client, CubeCount::Static(rows as u32, 1, 1), CubeDim::new_1d(plane),
+        &client, RudaCount::Static(rows as u32, 1, 1), RudaDim::new_1d(plane),
         into_contiguous(input).into_array_arg(), output.clone().into_array_arg(),
         width as u32, include_str!("softmax.rs").to_owned(),
     );
     Ok(output)
 }
 
-#[cube(launch)]
+#[ruda(launch)]
 fn row_softmax(input: &Array<f32>, output: &mut Array<f32>, width: u32, #[comptime] _source: String) {
     let width = width as usize;
-    let base = CUBE_POS_X as usize * width;
+    let base = RUDA_POS_X as usize * width;
     let lane = UNIT_POS as usize;
     let step = PLANE_DIM as usize;
     let mut maximum = input[base];

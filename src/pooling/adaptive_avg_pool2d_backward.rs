@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::Runtime;
 use ruda_kernel::tensor::contiguous::into_contiguous_aligned;
 use crate::pooling::pool2d::Position;
@@ -12,13 +12,13 @@ use ruda_kernel::tensor::permutation::permute_nchw_to_nhwc;
 use ruda_kernel::tensor::permutation::permute_nhwc_to_nchw;
 use ruda_kernel::tensor::RudaTensor;
 use ruda_core::tensor::Shape;
-use ruda_kernel::dsl::calculate_cube_count_elemwise;
+use ruda_kernel::dsl::calculate_ruda_count_elemwise;
 use ruda_kernel::dsl::num_traits::Zero;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::FastDivmod;
 use ruda_kernel::library::tensor::View;
 
-#[cube(launch, address_type = "dynamic")]
+#[ruda(launch, address_type = "dynamic")]
 fn adaptive_avg_pool2d_backward_direct<E: Numeric, N: Size>(
     grad: &Tensor<Vector<E, N>>,
     output: &mut View<Vector<E, N>, Position, ReadWrite>,
@@ -71,12 +71,12 @@ fn adaptive_avg_pool2d_backward_direct<E: Numeric, N: Size>(
     output[(b, ih, iw, c)] = grad_acc;
 }
 
-#[cube]
+#[ruda]
 fn start_index(output_size_index: usize, output_size: usize, input_size: usize) -> usize {
     (output_size_index * input_size) / output_size
 }
 
-#[cube]
+#[ruda]
 fn end_index(output_size_index: usize, output_size: usize, input_size: usize) -> usize {
     let index = (output_size_index + 1) * input_size;
     let index = index.div_ceil(output_size);
@@ -103,13 +103,13 @@ pub fn adaptive_avg_pool2d_backward<R: Runtime>(
     let num_elems = output.meta.num_elements();
 
     let working_units = num_elems / vector_size as usize;
-    let cube_dim = CubeDim::new(x.client.properties(), working_units);
-    let cube_count = calculate_cube_count_elemwise(&x.client, working_units, cube_dim);
+    let ruda_dim = RudaDim::new(x.client.properties(), working_units);
+    let ruda_count = calculate_ruda_count_elemwise(&x.client, working_units, ruda_dim);
 
     adaptive_avg_pool2d_backward_direct::launch(
         &output.client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         address_type!(out_grad, output),
         vector_size,
         out_grad.into_tensor_arg(),

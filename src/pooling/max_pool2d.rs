@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use super::pool2d::{
     Pool2dDirectArgsLaunch, Pool2dDirectStrategy, Pool2dDirectStrategyFamily, pool2d_direct,
 };
@@ -16,8 +16,8 @@ use ruda_kernel::tensor::RudaTensor;
 use ruda_core::tensor::DType;
 use ruda_core::tensor::Shape;
 use ruda_core::tensor::spatial::calculate_pool_output_size;
-use ruda_kernel::dsl::CubeDim;
-use ruda_kernel::dsl::calculate_cube_count_elemwise;
+use ruda_kernel::dsl::RudaDim;
+use ruda_kernel::dsl::calculate_ruda_count_elemwise;
 use ruda_kernel::dsl::num_traits::Zero;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::View;
@@ -53,7 +53,7 @@ impl Pool2dDirectStrategyFamily for MaxPoolWithIndicesStrategy {
     type Pool2d<T: Numeric, I: Int, N: Size> = Self;
 }
 
-#[cube]
+#[ruda]
 impl<T: Numeric, I: Int, N: Size> Pool2dDirectStrategy<T, I, N> for MaxPoolStrategy {
     type Accumulator = (Vector<T, N>, bool);
     type Config = bool;
@@ -101,7 +101,7 @@ impl<T: Numeric, I: Int, N: Size> Pool2dDirectStrategy<T, I, N> for MaxPoolStrat
     }
 }
 
-#[cube]
+#[ruda]
 impl<T: Numeric, I: Int, N: Size> Pool2dDirectStrategy<T, I, N> for MaxPoolWithIndicesStrategy {
     type Accumulator = (Vector<T, N>, Vector<I, N>, bool);
     type Config = bool;
@@ -190,13 +190,13 @@ pub fn max_pool2d<R: Runtime>(
     let output = empty_device_dtype(x.client.clone(), x.device.clone(), shape_out, x.dtype);
 
     let working_units = output.meta.num_elements() / vector_size as usize;
-    let cube_dim = CubeDim::new(x.client.properties(), working_units);
-    let cube_count = calculate_cube_count_elemwise(&x.client, working_units, cube_dim);
+    let ruda_dim = RudaDim::new(x.client.properties(), working_units);
+    let ruda_count = calculate_ruda_count_elemwise(&x.client, working_units, ruda_dim);
 
     pool2d_direct::launch::<MaxPoolStrategy, R>(
         &output.client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         address_type!(x, output),
         vector_size,
         x.into_tensor_arg(),
@@ -262,13 +262,13 @@ pub fn max_pool2d_with_indices<R: Runtime>(
     let indices = empty_device_dtype(x.client.clone(), x.device.clone(), shape_out, dtype_indices);
 
     let working_units = output.meta.num_elements() / vector_size as usize;
-    let cube_dim = CubeDim::new(x.client.properties(), working_units);
-    let cube_count = calculate_cube_count_elemwise(&x.client, working_units, cube_dim);
+    let ruda_dim = RudaDim::new(x.client.properties(), working_units);
+    let ruda_count = calculate_ruda_count_elemwise(&x.client, working_units, ruda_dim);
 
     pool2d_direct::launch::<MaxPoolWithIndicesStrategy, R>(
         &output.client,
-        cube_count,
-        cube_dim,
+        ruda_count,
+        ruda_dim,
         address_type!(x, output, indices),
         vector_size,
         x.into_tensor_arg(),

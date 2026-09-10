@@ -1,7 +1,7 @@
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::r#virtual::VirtualTensorOperations;
 use ruda_kernel::library::tensor::r#virtual::VirtualTensorOperationsExpand;
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 
 use crate::attention::kernel_ir::definition::{AttentionBlueprint, AttentionProblem};
 
@@ -48,16 +48,16 @@ impl<T: Numeric, N: Size> NumericLine for (T, N) {
     type N = N;
 }
 
-#[cube]
+#[ruda]
 /// Arguments for the attention algorithm.
 pub trait AttentionArgs: Send + Sync + 'static + Clone {
     /// Type used for the input.
-    type Input<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine>: LaunchArg + CubeType;
+    type Input<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine>: LaunchArg + RudaType;
     /// Type used for the output.
-    type Output<O: FloatLine>: LaunchArg + CubeType;
+    type Output<O: FloatLine>: LaunchArg + RudaType;
     /// Inner state that is used to create tensor inputs and
     /// [tensor outputs](TensorOutput) .
-    type State<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine>: CubeType;
+    type State<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine>: RudaType;
 
     /// Init the state.
     fn init_state<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine>(
@@ -764,7 +764,7 @@ pub struct TensorQueryExpand<
     O: FloatLine,
     GA: AttentionArgs,
 > {
-    state: <GA::State<Q, K, V, M, O> as CubeType>::ExpandType,
+    state: <GA::State<Q, K, V, M, O> as RudaType>::ExpandType,
 }
 
 pub struct TensorKeyExpand<
@@ -775,7 +775,7 @@ pub struct TensorKeyExpand<
     O: FloatLine,
     GA: AttentionArgs,
 > {
-    state: <GA::State<Q, K, V, M, O> as CubeType>::ExpandType,
+    state: <GA::State<Q, K, V, M, O> as RudaType>::ExpandType,
 }
 
 pub struct TensorValueExpand<
@@ -786,7 +786,7 @@ pub struct TensorValueExpand<
     O: FloatLine,
     GA: AttentionArgs,
 > {
-    state: <GA::State<Q, K, V, M, O> as CubeType>::ExpandType,
+    state: <GA::State<Q, K, V, M, O> as RudaType>::ExpandType,
 }
 
 pub struct TensorMaskExpand<
@@ -797,7 +797,7 @@ pub struct TensorMaskExpand<
     O: FloatLine,
     GA: AttentionArgs,
 > {
-    state: <GA::State<Q, K, V, M, O> as CubeType>::ExpandType,
+    state: <GA::State<Q, K, V, M, O> as RudaType>::ExpandType,
 }
 
 /// Expand type for [tensor output](TensorOutput).
@@ -809,10 +809,10 @@ pub struct TensorOutputExpand<
     O: FloatLine,
     GA: AttentionArgs,
 > {
-    state: <GA::State<Q, K, V, M, O> as CubeType>::ExpandType,
+    state: <GA::State<Q, K, V, M, O> as RudaType>::ExpandType,
 }
 
-#[cube]
+#[ruda]
 impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, MA: AttentionArgs>
     TensorQuery<Q, K, V, M, O, MA>
 {
@@ -868,7 +868,7 @@ impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, MA:
     }
 }
 
-#[cube]
+#[ruda]
 impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, MA: AttentionArgs>
     TensorKey<Q, K, V, M, O, MA>
 {
@@ -924,7 +924,7 @@ impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, MA:
     }
 }
 
-#[cube]
+#[ruda]
 impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, MA: AttentionArgs>
     TensorValue<Q, K, V, M, O, MA>
 {
@@ -980,7 +980,7 @@ impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, MA:
     }
 }
 
-#[cube]
+#[ruda]
 impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, MA: AttentionArgs>
     TensorMask<Q, K, V, M, O, MA>
 {
@@ -1036,7 +1036,7 @@ impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, MA:
     }
 }
 
-#[cube]
+#[ruda]
 impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
     TensorOutput<Q, K, V, M, O, GA>
 {
@@ -1088,7 +1088,7 @@ impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA:
 /// Other types might implement [AttentionArgs] for fused matrix multiplication kernels.
 pub struct TensorArgs;
 
-#[derive(CubeLaunch, CubeType)]
+#[derive(RudaLaunch, RudaType)]
 /// Input representation for [TensorArgs] implementing [AttentionArgs].
 pub struct TensorInputs<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine> {
     pub query: Tensor<Vector<Q::T, Q::N>>,
@@ -1130,7 +1130,7 @@ impl<EG: Numeric, EGS: Size> ConcreteOutputFactory for Tensor<Vector<EG, EGS>> {
     }
 }
 
-#[derive(CubeType)]
+#[derive(RudaType)]
 pub struct AttentionState<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine> {
     pub query: *const Tensor<Vector<Q::T, Q::N>>,
     pub key: *const Tensor<Vector<K::T, K::N>>,
@@ -1139,7 +1139,7 @@ pub struct AttentionState<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLi
     pub output: *mut Tensor<Vector<O::T, O::N>>,
 }
 
-#[cube]
+#[ruda]
 impl AttentionArgs for TensorArgs {
     type Input<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine> = TensorInputs<Q, K, V, M>;
     type Output<O: FloatLine> = Tensor<Vector<O::T, O::N>>;
@@ -1475,7 +1475,7 @@ mod __query {
     use super::*;
 
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeType for TensorQuery<Q, K, V, M, O, GA>
+        RudaType for TensorQuery<Q, K, V, M, O, GA>
     {
         type ExpandType = TensorQueryExpand<Q, K, V, M, O, GA>;
     }
@@ -1499,7 +1499,7 @@ mod __query {
         }
     }
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeDebug for TensorQueryExpand<Q, K, V, M, O, GA>
+        RudaDebug for TensorQueryExpand<Q, K, V, M, O, GA>
     {
         fn set_debug_name(&self, scope: &mut Scope, name: &'static str) {
             self.state.set_debug_name(scope, name);
@@ -1522,7 +1522,7 @@ mod __key {
     use super::*;
 
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeType for TensorKey<Q, K, V, M, O, GA>
+        RudaType for TensorKey<Q, K, V, M, O, GA>
     {
         type ExpandType = TensorKeyExpand<Q, K, V, M, O, GA>;
     }
@@ -1546,7 +1546,7 @@ mod __key {
         }
     }
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeDebug for TensorKeyExpand<Q, K, V, M, O, GA>
+        RudaDebug for TensorKeyExpand<Q, K, V, M, O, GA>
     {
         fn set_debug_name(&self, scope: &mut Scope, name: &'static str) {
             self.state.set_debug_name(scope, name);
@@ -1569,7 +1569,7 @@ mod __value {
     use super::*;
 
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeType for TensorValue<Q, K, V, M, O, GA>
+        RudaType for TensorValue<Q, K, V, M, O, GA>
     {
         type ExpandType = TensorValueExpand<Q, K, V, M, O, GA>;
     }
@@ -1593,7 +1593,7 @@ mod __value {
         }
     }
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeDebug for TensorValueExpand<Q, K, V, M, O, GA>
+        RudaDebug for TensorValueExpand<Q, K, V, M, O, GA>
     {
         fn set_debug_name(&self, scope: &mut Scope, name: &'static str) {
             self.state.set_debug_name(scope, name);
@@ -1616,7 +1616,7 @@ mod __mask {
     use super::*;
 
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeType for TensorMask<Q, K, V, M, O, GA>
+        RudaType for TensorMask<Q, K, V, M, O, GA>
     {
         type ExpandType = TensorMaskExpand<Q, K, V, M, O, GA>;
     }
@@ -1640,7 +1640,7 @@ mod __mask {
         }
     }
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeDebug for TensorMaskExpand<Q, K, V, M, O, GA>
+        RudaDebug for TensorMaskExpand<Q, K, V, M, O, GA>
     {
         fn set_debug_name(&self, scope: &mut Scope, name: &'static str) {
             self.state.set_debug_name(scope, name);
@@ -1663,7 +1663,7 @@ mod __output {
     use super::*;
 
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeType for TensorOutput<Q, K, V, M, O, GA>
+        RudaType for TensorOutput<Q, K, V, M, O, GA>
     {
         type ExpandType = TensorOutputExpand<Q, K, V, M, O, GA>;
     }
@@ -1696,7 +1696,7 @@ mod __output {
     }
 
     impl<Q: FloatLine, K: FloatLine, V: FloatLine, M: NumericLine, O: FloatLine, GA: AttentionArgs>
-        CubeDebug for TensorOutputExpand<Q, K, V, M, O, GA>
+        RudaDebug for TensorOutputExpand<Q, K, V, M, O, GA>
     {
         fn set_debug_name(&self, scope: &mut Scope, name: &'static str) {
             self.state.set_debug_name(scope, name);

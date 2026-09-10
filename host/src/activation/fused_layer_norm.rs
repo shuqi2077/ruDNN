@@ -4,7 +4,7 @@ use super::*;
 // Fused layer_norm
 // ============================================================================
 //
-// `burn::nn::LayerNorm::forward` decomposes into ~6 primitive tensor ops
+// `ruda_nn::LayerNorm::forward` decomposes into ~6 primitive tensor ops
 // with intermediate allocations, and there is no backend trait hook for
 // layer_norm. This module provides a fused alternative users can opt into
 // directly. Two-pass row kernel (sum+sumsq sweep, then normalize+affine
@@ -101,7 +101,7 @@ pub fn layer_norm(
         DType::BF16 => {
             layer_norm_via_f32::<bf16>(input, gamma, beta, epsilon, bf16::to_f32, bf16::from_f32)
         }
-        dtype => panic!("burn_flex::layer_norm: unsupported dtype {:?}", dtype),
+        dtype => panic!("ruda_tensor_host::layer_norm: unsupported dtype {:?}", dtype),
     }
 }
 
@@ -495,7 +495,7 @@ fn layer_norm_row_f32_simd<S: macerator::Simd>(
 
     let n = len as f32;
     let mean = sum / n;
-    // Biased variance: E[x^2] - E[x]^2. Matches burn::nn::LayerNorm which
+    // Biased variance: E[x^2] - E[x]^2. Matches ruda_nn::LayerNorm which
     // uses var_mean_bias (the biased estimator) rather than Bessel's
     // correction.
     let var = (sumsq / n) - mean * mean;
@@ -540,4 +540,3 @@ fn layer_norm_row_f32_simd<S: macerator::Simd>(
         i += 1;
     }
 }
-

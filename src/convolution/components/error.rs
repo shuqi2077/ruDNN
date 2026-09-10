@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use core::fmt::Debug;
 use ruda_kernel::dsl::server::LaunchError;
 use rublas::kernel_ir::definition::{MatmulAvailabilityError, MatmulSetupError};

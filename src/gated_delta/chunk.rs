@@ -1,7 +1,7 @@
 use super::{GatedDeltaError, GatedDeltaInput, GatedDeltaOutput, chunk_kernel as kernel, validate};
 use ruda_core::tensor::{DType, Shape};
 use ruda_kernel::{
-    dsl::{Runtime, calculate_cube_count_elemwise, prelude::{CubeCount, CubeDim}},
+    dsl::{Runtime, calculate_ruda_count_elemwise, prelude::{RudaCount, RudaDim}},
     tensor::{RudaTensor, allocation::empty_device_contiguous_dtype, contiguous::into_contiguous,
         permutation::swap_dims, reshape::reshape},
 };
@@ -61,8 +61,8 @@ pub(super) fn chunk_impl<R: Runtime>(
     let allocate = |shape: Shape, dtype| empty_device_contiguous_dtype(client.clone(), device.clone(), shape, dtype);
     let matrix = |rows, cols| allocate([h, rows, cols].into(), DType::F32);
     let launch = |elements| {
-        let dim = CubeDim::new(client.properties(), elements);
-        (calculate_cube_count_elemwise(&client, elements, dim), dim)
+        let dim = RudaDim::new(client.properties(), elements);
+        (calculate_ruda_count_elemwise(&client, elements, dim), dim)
     };
     let source = || include_str!("chunk_kernel.rs").to_owned();
     let q = into_contiguous(input.query);
@@ -75,8 +75,8 @@ pub(super) fn chunk_impl<R: Runtime>(
     let tile = prefix_tile(h, sequence, c);
     for start in (0..sequence).step_by(c) {
         let cumulative = matrix(c, 1);
-        kernel::prefix::launch::<R>(&client, CubeCount::Static(h as u32, 1, 1),
-            CubeDim::new_1d((tile / 2).max(1) as u32),
+        kernel::prefix::launch::<R>(&client, RudaCount::Static(h as u32, 1, 1),
+            RudaDim::new_1d((tile / 2).max(1) as u32),
             decay.clone().into_array_arg(), cumulative.clone().into_array_arg(),
             sequence as u32, start as u32, c, tile, source());
         let prepare = |tensor: &RudaTensor<R>, width, scale, mode| {
@@ -110,8 +110,8 @@ pub(super) fn chunk_impl<R: Runtime>(
         let triangular = mask(product(key_beta, swap_dims(key.clone(), 1, 2))?, true);
         let inverse = matrix(c, c);
         let plane = client.properties().hardware.plane_size_max;
-        kernel::triangular_inverse::launch::<R>(&client, CubeCount::Static(h as u32, 1, 1),
-            CubeDim::new_1d(plane), triangular.into_array_arg(), inverse.clone().into_array_arg(), c, source());
+        kernel::triangular_inverse::launch::<R>(&client, RudaCount::Static(h as u32, 1, 1),
+            RudaDim::new_1d(plane), triangular.into_array_arg(), inverse.clone().into_array_arg(), c, source());
         #[cfg(test)]
         if let Some(observe) = &mut observe { observe(start / c, "inverse", inverse.clone()); }
         let value = product(inverse.clone(), value_beta)?;

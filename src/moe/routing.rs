@@ -1,7 +1,7 @@
 use super::{MoeError, elements, empty, float_tensor, kernels};
 use ruda_core::tensor::DType;
 use ruda_kernel::{
-    dsl::{Runtime, calculate_cube_count_elemwise, prelude::CubeDim},
+    dsl::{Runtime, calculate_ruda_count_elemwise, prelude::RudaDim},
     tensor::{RudaTensor, contiguous::into_contiguous},
 };
 
@@ -61,8 +61,8 @@ pub fn route<R: Runtime>(
     if tokens != 0 {
         let logits = into_contiguous(logits);
         let probabilities = empty(&logits, [tokens, experts], DType::F32);
-        let dim = CubeDim::new(logits.client.properties(), tokens);
-        let count = calculate_cube_count_elemwise(&logits.client, tokens, dim);
+        let dim = RudaDim::new(logits.client.properties(), tokens);
+        let count = calculate_ruda_count_elemwise(&logits.client, tokens, dim);
         kernels::routing::softmax::launch::<R>(
             &logits.client,
             count.clone(),

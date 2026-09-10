@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::FastDivmod;
 use ruda_kernel::library::tensor::layout::Layout;
@@ -16,7 +16,7 @@ use crate::convolution::components::{
 /// Maps a 4D NHWC tensor to a 2D column matrix using the im2col transformation
 /// It first decomposes the `(m, k)` matrix into `((n, out_h, out_w), (k_h, k_w, c))`, then applies
 /// the convolution parameters to calculate the position in the input tensor for that kernel element.
-#[derive(CubeType, CubeLaunch, Clone)]
+#[derive(RudaType, RudaLaunch, Clone)]
 pub struct Im2colLayout {
     /// Shape of output DHW
     pub shape_out: Sequence<FastDivmod<u32>>,
@@ -29,14 +29,14 @@ pub struct Im2colLayout {
     pub cols: u32,
 
     /// Comptime parameters for the convolution
-    #[cube(comptime)]
+    #[ruda(comptime)]
     pub params: ConvolutionParams,
     /// Global memory config for the backing tensor
-    #[cube(comptime)]
+    #[ruda(comptime)]
     pub config: GlobalLayoutConfig,
 }
 
-#[cube]
+#[ruda]
 impl Im2colLayout {
     pub fn new<G: GlobalConfig>(
         rows: u32,
@@ -57,7 +57,7 @@ impl Im2colLayout {
     }
 }
 
-#[cube]
+#[ruda]
 impl Layout for Im2colLayout {
     type Coordinates = BatchedCoords;
     type SourceCoordinates = NhwcCoords;

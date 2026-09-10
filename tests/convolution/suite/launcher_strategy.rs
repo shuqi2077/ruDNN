@@ -3,9 +3,9 @@
 //! `test_algo` is a convenience wrapper that builds a 2D conv `Problem` from a
 //! `ConvolutionSize` + tiling/swizzle/buffering, then routes through the public
 //! `rudnn::convolution::launch_ref` (`Strategy::Forced`) and validates the
-//! output against a CPU reference via `cubek-test-utils`.
+//! output against a CPU reference via `ruda-test-utils`.
 
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_test_runtime::TestRuntime;
 use ruda_kernel::dsl::zspace::Shape;
 use ruda_kernel::dsl::zspace::shape;

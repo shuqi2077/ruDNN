@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
 use ruda_kernel::dsl::Runtime;
@@ -48,7 +48,7 @@ impl From<GridSamplePaddingMode> for PaddingMode {
 }
 
 /// Fetch value based on padding mode (dispatch to appropriate handler)
-#[cube]
+#[ruda]
 pub fn fetch_value<F: Float>(
     input: &Tensor<F>,
     base: usize,
@@ -70,7 +70,7 @@ pub fn fetch_value<F: Float>(
 }
 
 /// Fetch value with zeros padding (return 0 for out-of-bounds).
-#[cube]
+#[ruda]
 pub fn fetch_with_zeros<F: Float>(
     input: &Tensor<F>,
     base: usize,
@@ -89,7 +89,7 @@ pub fn fetch_with_zeros<F: Float>(
 }
 
 /// Fetch value with border padding (clamp to edge).
-#[cube]
+#[ruda]
 pub fn fetch_with_border<F: Float>(
     input: &Tensor<F>,
     base: usize,
@@ -108,7 +108,7 @@ pub fn fetch_with_border<F: Float>(
 
 /// Fetch value with reflection padding.
 /// Assumes float reflection was applied to center, so indices are at most 2 steps out of bounds.
-#[cube]
+#[ruda]
 pub fn fetch_with_reflection<F: Float>(
     input: &Tensor<F>,
     base: usize,
@@ -127,7 +127,7 @@ pub fn fetch_with_reflection<F: Float>(
 
 /// Reflect an integer index that may be out of bounds.
 /// After float reflection, indices can be up to 2 steps out for bicubic (1 step for bilinear).
-#[cube]
+#[ruda]
 fn reflect_coord_bounded(idx: i32, size: i32) -> usize {
     let max_idx = size - 1;
     let neg_reflected = -idx - 1;
@@ -141,7 +141,7 @@ fn reflect_coord_bounded(idx: i32, size: i32) -> usize {
 }
 
 /// Reflect a float coordinate into the valid sampling range.
-#[cube]
+#[ruda]
 pub fn reflect_coord<F: Float>(coord: F, size: u32, #[comptime] align_corners: bool) -> F {
     let size_f = F::cast_from(size);
     if align_corners {
@@ -152,7 +152,7 @@ pub fn reflect_coord<F: Float>(coord: F, size: u32, #[comptime] align_corners: b
 }
 
 /// Reflect a float coordinate into [min_val, max_val] using a triangle wave pattern.
-#[cube]
+#[ruda]
 fn reflect_float_impl<F: Float>(coord: F, min_val: F, max_val: F) -> F {
     let span = max_val - min_val;
 

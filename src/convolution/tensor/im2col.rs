@@ -14,12 +14,12 @@ pub(crate) fn batches_per_run(
 ) -> Result<usize, ConvSetupError> {
     use {rublas::kernel_ir::definition::MatmulAvailabilityError};
 
-    let cube_count_per_batch = out_shape.div_ceil(plane_size);
-    let max_cube_count = u16::MAX as usize;
-    let max_simultaneous = Ord::min(max_cube_count / cube_count_per_batch, batch_size);
+    let ruda_count_per_batch = out_shape.div_ceil(plane_size);
+    let max_ruda_count = u16::MAX as usize;
+    let max_simultaneous = Ord::min(max_ruda_count / ruda_count_per_batch, batch_size);
     if max_simultaneous == 0 {
-        return Err(MatmulAvailabilityError::CubeCountTooBig(CubeCount::Static(
-            cube_count_per_batch as u32,
+        return Err(MatmulAvailabilityError::RudaCountTooBig(RudaCount::Static(
+            ruda_count_per_batch as u32,
             1,
             1,
         ))

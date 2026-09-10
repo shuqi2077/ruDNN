@@ -4,18 +4,18 @@ use crate::attention::kernel_ir::components::{
     stage::StageAttentionConfig,
 };
 use crate::attention::kernel_ir::{
-    definition::AttentionBlueprint, definition::AttentionElems, definition::CubeMapping,
+    definition::AttentionBlueprint, definition::AttentionElems, definition::RudaMapping,
     launch::AttentionArgs, launch::TensorKey, launch::TensorMask, launch::TensorOutput,
     launch::TensorQuery, launch::TensorValue,
 };
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::library::tensor::r#virtual::VirtualTensor;
 
 type Input<Args, QG, KG, VG, MSK> = <Args as AttentionArgs>::Input<QG, KG, VG, MSK>;
 type Output<Args, OG> = <Args as AttentionArgs>::Output<OG>;
 
-#[cube(launch_unchecked, explicit_define, address_type = "dynamic")]
+#[ruda(launch_unchecked, explicit_define, address_type = "dynamic")]
 /// Launches the attention kernel
 pub(crate) fn attention<
     Args: AttentionArgs,
@@ -33,7 +33,7 @@ pub(crate) fn attention<
 >(
     inputs: &Input<Args, (QG, QGS), (KG, KGS), (VG, VGS), (MSK, MSKS)>,
     output: &mut Output<Args, (OG, OGS)>,
-    cube_mapping: CubeMapping,
+    ruda_mapping: RudaMapping,
     #[comptime] blueprint: AttentionBlueprint,
     #[comptime] dtypes: AttentionElems,
     #[define(QG, KG, VG, MSK, OG)] _elem_types: [StorageType; 5],
@@ -113,5 +113,5 @@ pub(crate) fn attention<
         MSK,
         MSKS,
         (OG, OGS, OS, OSS),
-    )>::execute(query, key, value, mask, out, cube_mapping, config);
+    )>::execute(query, key, value, mask, out, ruda_mapping, config);
 }

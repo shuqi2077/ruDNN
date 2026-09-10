@@ -55,7 +55,7 @@ use half::f16;
         // attention suite uses small shapes), so the flash entry needs a
         // direct call to stay covered. General broadcast semantics for the
         // main `attention()` path live in
-        // crates/burn-backend-tests/tests/tensor/float/module/attention.rs.
+        // crates/ruda-backend-tests/tests/tensor/float/module/attention.rs.
         let batch = 2;
         let heads = 2;
         let seq_q = 3;

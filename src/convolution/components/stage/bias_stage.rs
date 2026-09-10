@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use rublas::kernel_ir::components::stage::{LoadStageFamily, Stage, StageFamily, TilingLayout};
 
@@ -17,7 +17,7 @@ impl StageFamily for BiasStageFamily {
     type Stage<ES: Numeric, NS: Size, T: TilingLayout> = BiasStageMemory<ES, NS>;
 }
 
-#[derive(CubeType, Clone, Copy)]
+#[derive(RudaType, Clone, Copy)]
 /// Wrapper over the shared memory used for staging,
 /// abstracting its layout
 pub struct BiasStageMemory<ES: Numeric, NS: Size> {
@@ -27,13 +27,13 @@ pub struct BiasStageMemory<ES: Numeric, NS: Size> {
     pub swizzle: Swizzle,
     buffer_index: u32,
 
-    #[cube(comptime)]
+    #[ruda(comptime)]
     stage_size: u32,
-    #[cube(comptime)]
+    #[ruda(comptime)]
     config: StageMemoryConfig,
 }
 
-#[cube]
+#[ruda]
 impl<ES: Numeric, NS: Size> BiasStageMemory<ES, NS> {
     /// Instantiate a new stage memory for the given identifier
     pub fn new(#[comptime] config: StageMemoryConfig) -> BiasStageMemory<ES, NS> {
@@ -121,14 +121,14 @@ impl<ES: Numeric, NS: Size> BiasStageMemory<ES, NS> {
     }
 }
 
-#[cube]
+#[ruda]
 impl<ES: Numeric, NS: Size> Stage<ES, ReadOnly> for BiasStageMemory<ES, NS> {
     fn tile<Sc: TileScope>(this: &Self, tile: Coords2d) -> Tile<ES, Sc, ReadOnly> {
         Tile::new_SharedMemory(SharedTile::wrap::<NS>(this.get_tile(tile)))
     }
 }
 
-#[cube]
+#[ruda]
 impl LoadStageFamily<ReadOnly> for BiasStageFamily {
     fn create<ES: Numeric, NS: Size, T: TilingLayout>(
         #[comptime] alignment: usize,

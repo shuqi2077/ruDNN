@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use crate::convolution::{
     backward_weight::args::{ConcreteArgs, ConcreteInputsFactory, ConcreteOutputFactory},
     components::global::args::RuntimeArgs,

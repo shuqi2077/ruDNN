@@ -1,4 +1,4 @@
-use ruda_kernel::dsl as cubecl;
+use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 use ruda_kernel::tiling::{
     MatrixLayout, SwizzleModes,
@@ -40,7 +40,7 @@ impl AttentionCmmaMatmul {
 }
 
 /// Attention's tile-level matmul configuration. Each variant carries the per-kind
-/// config from cubek-std.
+/// config from ruda-kernel::tiling.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum AttentionTileMatmul {
     Cmma(AttentionCmmaMatmul),
@@ -82,7 +82,7 @@ impl AttentionTileMatmul {
     }
 }
 
-#[cube]
+#[ruda]
 pub fn allocate_lhs<L: Numeric>(
     #[comptime] matmul: AttentionTileMatmul,
 ) -> Tile<L, Plane, ReadWrite> {
@@ -96,7 +96,7 @@ pub fn allocate_lhs<L: Numeric>(
     }
 }
 
-#[cube]
+#[ruda]
 pub fn allocate_rhs<R: Numeric>(
     #[comptime] matmul: AttentionTileMatmul,
 ) -> Tile<R, Plane, ReadWrite> {
@@ -110,7 +110,7 @@ pub fn allocate_rhs<R: Numeric>(
     }
 }
 
-#[cube]
+#[ruda]
 pub fn allocate_rhs_transposed<R: Numeric>(
     #[comptime] matmul: AttentionTileMatmul,
 ) -> Tile<R, Plane, ReadWrite> {
@@ -128,7 +128,7 @@ pub fn allocate_rhs_transposed<R: Numeric>(
 /// softmax stats (output). For the cmma path this is a `Tile::Bounce`
 /// (cmma + smem + WhiteboxFragment) so row-wise ops can read/write through
 /// smem; for the register path it falls back to `Tile::Register`.
-#[cube]
+#[ruda]
 pub fn allocate_rowwise_acc<A: Float>(
     #[comptime] matmul: AttentionTileMatmul,
 ) -> Tile<A, Plane, ReadWrite> {
@@ -159,7 +159,7 @@ pub fn allocate_rowwise_acc<A: Float>(
 /// Allocates an LHS tile that receives the post-softmax cast-down values
 /// (the value-matmul lhs). For the cmma path this is a `Tile::Bounce` so the
 /// softmaxed values can be written through smem into the cmma fragment.
-#[cube]
+#[ruda]
 pub fn allocate_softmax_target_lhs<L: Float>(
     #[comptime] matmul: AttentionTileMatmul,
 ) -> Tile<L, Plane, ReadWrite> {

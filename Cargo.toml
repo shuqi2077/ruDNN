@@ -17,6 +17,7 @@ cann = ["dep:ruda-driver-cann"]
 tensor-normalization = ["kernel-ir", "ruda-kernel/device-tensor"]
 tensor-gated-delta = ["kernel-ir", "ruda-kernel/device-tensor", "rublas/tensor-matmul"]
 tensor-moe = ["kernel-ir", "ruda-kernel/device-tensor", "rublas/tensor-grouped"]
+tensor-nf4-moe = ["tensor-moe", "rublas/tensor-nf4", "dep:ruprim", "ruprim/elementwise"]
 attention-fallback = ["dep:ruda-core", "ruda-core/tensor-elements", "ruda-core/tensor-device-settings", "dep:num-traits"]
 tensor-attention = ["attention-fallback", "kernel-ir", "ruda-kernel/device-tensor", "rublas/tensor-matmul", "dep:ruprim", "ruprim/elementwise", "ruprim/tensor-reduce"]
 tensor-attention-autotune = ["tensor-attention", "rublas/tensor-matmul-autotune", "ruprim/tensor-reduce-autotune"]
@@ -36,7 +37,7 @@ full = ["extended"]
 
 [dependencies]
 ruda-driver-cann = { version = "0.1.35", path = "../ruda-driver-cann", optional = true }
-rublas = { version = "0.1.35", path = "../ruBLAS", default-features = false, optional = true }
+rublas = { version = "0.1.46", path = "../ruBLAS", default-features = false, optional = true }
 ruda-kernel = { version = "0.1.12", path = "../ruda-kernel", default-features = false, features = ["kernel-ir"], optional = true }
 bytemuck = { version = "1.16.1", optional = true }
 derive-new = { version = "0.7.0", default-features = false, optional = true }

@@ -1,5 +1,6 @@
 use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
+use ruda_kernel::library::tensor::layout::linear::LinearView;
 
 #[ruda(launch)]
 pub(crate) fn swiglu<F: Float>(
@@ -28,6 +29,19 @@ pub(crate) fn swiglu_out<F: Float>(
         let silu = F::cast_from(g / (1.0f32 + f32::exp(-g)));
         out[i] = F::cast_from(f32::cast_from(silu) * f32::cast_from(up[i]));
     }
+}
+
+#[ruda(launch_unchecked, address_type = "dynamic")]
+pub(crate) fn swiglu_vector<F: Float, N: Size>(
+    gate: &LinearView<Vector<F, N>>, up: &LinearView<Vector<F, N>>,
+    out: &mut LinearView<Vector<F, N>, ReadWrite>,
+    #[define(F)] _dtype: StorageType,
+) {
+    if !out.is_in_bounds(ABSOLUTE_POS) { terminate!(); }
+    let g = Vector::<f32, N>::cast_from(gate[ABSOLUTE_POS]);
+    let silu = Vector::<F, N>::cast_from(g / (Vector::new(1f32) + Vector::exp(-g)));
+    out[ABSOLUTE_POS] = Vector::cast_from(Vector::<f32, N>::cast_from(silu)
+        * Vector::<f32, N>::cast_from(up[ABSOLUTE_POS]));
 }
 
 #[ruda(launch)]

@@ -9,6 +9,63 @@ use ruda_kernel::tensor::{allocation::empty_device_contiguous_dtype, contiguous:
 pub fn rms_norm<R: Runtime>(
     input: RudaTensor<R>, gamma: RudaTensor<R>, epsilon: f32,
 ) -> Result<RudaTensor<R>, NormalizationError> {
+    if ruda_kernel::tensor::tuning::is_enabled() {
+        let (width, rows, plane, maximum) = validate(&input, &gamma, epsilon)?;
+        if rows > 0 {
+            let original = launch_parameters(width, rows, plane, maximum);
+            let maximum = maximum.min(input.client.properties().hardware.max_units_per_ruda);
+            let mut candidates = vec![("original_launch", None)];
+            for (name, threads, vectorized) in [
+                ("scalar_plane", plane, false),
+                ("vector_plane", plane, true),
+                ("vector_128", 128, true),
+                ("vector_256", 256, true),
+            ] {
+                if threads >= plane && threads <= maximum {
+                    candidates.push((name, Some((threads, vectorized, false))));
+                }
+            }
+            if input.dtype == DType::BF16 {
+                for (name, threads) in [("res_shared_original", original.0), ("res_shared_128", 128), ("res_shared_256", 256)] {
+                    let shared_bytes = width.checked_mul(input.dtype.size())
+                        .and_then(|bytes| bytes.checked_add(3).map(|bytes| bytes & !3))
+                        .and_then(|bytes| bytes.checked_add(threads as usize * 4));
+                    if threads >= original.0 && threads <= maximum && threads >= plane
+                        && threads.is_power_of_two() && threads % plane == 0
+                        && shared_bytes.is_some_and(|bytes| bytes <= input.client.properties().hardware.max_shared_memory_size as usize)
+                    {
+                        candidates.push((name, Some((threads, original.1, true))));
+                    }
+                }
+            }
+            let result = ruda_kernel::tensor::tuning::execute_variants_prepared(
+                vec![input.clone(), gamma.clone()],
+                "rms_norm_inference_v2",
+                format!("epsilon={:08x}", epsilon.to_bits()),
+                candidates,
+                move |values, config| {
+                    rms_norm_inner(values[0].clone(), values[1].clone(), epsilon, config)
+                        .map(|output| vec![output])
+                        .map_err(|error| error.to_string())
+                },
+            ).map_err(|_| NormalizationError("RMSNorm inference autotune failed without replay"))?;
+            if let Some(mut output) = result {
+                return Ok(output.remove(0));
+            }
+        }
+    }
+    rms_norm_reference(input, gamma, epsilon)
+}
+
+pub fn rms_norm_reference<R: Runtime>(
+    input: RudaTensor<R>, gamma: RudaTensor<R>, epsilon: f32,
+) -> Result<RudaTensor<R>, NormalizationError> {
+    rms_norm_inner(input, gamma, epsilon, None)
+}
+
+fn validate<R: Runtime>(
+    input: &RudaTensor<R>, gamma: &RudaTensor<R>, epsilon: f32,
+) -> Result<(usize, usize, u32, u32), NormalizationError> {
     let shape = input.meta.shape();
     let width = *shape.last().ok_or(NormalizationError("RMSNorm requires an axis"))?;
     let elements = shape.iter().try_fold(1usize, |n, &d| n.checked_mul(d));
@@ -29,12 +86,30 @@ pub fn rms_norm<R: Runtime>(
     if !plane.is_power_of_two() || plane > maximum {
         return Err(NormalizationError("RMSNorm requires a power-of-two plane"));
     }
+    Ok((width, elements.unwrap() / width, plane, maximum))
+}
+
+fn rms_norm_inner<R: Runtime>(
+    input: RudaTensor<R>, gamma: RudaTensor<R>, epsilon: f32,
+    config: Option<(u32, bool, bool)>,
+) -> Result<RudaTensor<R>, NormalizationError> {
+    let (width, rows, plane, maximum) = validate(&input, &gamma, epsilon)?;
+    let shape = input.meta.shape();
     let output = empty_device_contiguous_dtype(input.client.clone(), input.device.clone(), shape.clone().into(), input.dtype);
-    let rows = elements.unwrap() / width;
     if rows == 0 { return Ok(output); }
-    let (threads, vectorized) = launch_parameters(width, rows, plane, maximum);
+    let original = launch_parameters(width, rows, plane, maximum);
+    let (threads, vectorized, resident) = config.unwrap_or((original.0, original.1, false));
     let client = input.client.clone();
     let dtype = input.dtype;
+    if resident {
+        row_rms_norm_resident::launch::<R>(
+            &client, RudaCount::Static(rows as u32, 1, 1), RudaDim::new_1d(threads),
+            into_contiguous(input).into_array_arg(), into_contiguous(gamma).into_array_arg(),
+            output.clone().into_array_arg(), epsilon, width, threads, original.0, original.1,
+            include_str!("rms.rs").to_owned(), dtype.into(),
+        );
+        return Ok(output);
+    }
     row_rms_norm::launch::<R>(
         &client, RudaCount::Static(rows as u32, 1, 1), RudaDim::new_1d(threads),
         into_contiguous(input).into_array_arg(), into_contiguous(gamma).into_array_arg(),
@@ -123,6 +198,69 @@ fn reduce_row(value: f32, divisor: f32, #[comptime] threads: u32) -> f32 {
     if lane == 0 { shared[0] = sum / divisor; }
     sync_ruda();
     shared[0]
+}
+
+#[ruda(launch)]
+fn row_rms_norm_resident<F: Float>(
+    input: &Array<F>, gamma: &Array<f32>, output: &mut Array<F>, epsilon: f32,
+    #[comptime] width: usize, #[comptime] threads: u32, #[comptime] statistics_threads: u32,
+    #[comptime] vectorized: bool, #[comptime] _source: String, #[define(F)] _dtype: StorageType,
+) {
+    let base = RUDA_POS_X as usize * width;
+    let lane = UNIT_POS as usize;
+    let mut resident = SharedMemory::<F>::new(width);
+    let mut column = lane;
+    while column < width {
+        resident[column] = input[base + column];
+        if width - column <= threads as usize { break; }
+        column += threads as usize;
+    }
+    sync_ruda();
+    let step = statistics_threads as usize;
+    let mut sums = Array::<f32>::new(4usize);
+    #[unroll]
+    for i in 0usize..4usize { sums[i] = 0.0; }
+    if lane < statistics_threads as usize {
+        if comptime!(vectorized) {
+            let end = width / 4 * 4;
+            let mut column = lane * 4;
+            while column < end {
+                #[unroll]
+                for i in 0usize..4usize {
+                    let value = f32::cast_from(resident[column + i]);
+                    sums[i] += value * value;
+                }
+                if end - column <= step * 4 { break; }
+                column += step * 4;
+            }
+            if lane < width - end {
+                let value = f32::cast_from(resident[end + lane]);
+                sums[0] += value * value;
+            }
+        } else {
+            let mut column = lane;
+            while column < width {
+                #[unroll]
+                for i in 0usize..4usize {
+                    if i * step < width - column {
+                        let value = f32::cast_from(resident[column + i * step]);
+                        sums[i] += value * value;
+                    }
+                }
+                if width - column <= step * 4 { break; }
+                column += step * 4;
+            }
+        }
+    }
+    let sum = ((sums[0] + sums[1]) + sums[2]) + sums[3];
+    let inverse = (reduce_row(sum, width as f32, threads) + epsilon).inverse_sqrt();
+    column = lane;
+    while column < width {
+        let value = f32::cast_from(resident[column]);
+        output[base + column] = F::cast_from((value * inverse) * gamma[column]);
+        if width - column <= threads as usize { break; }
+        column += threads as usize;
+    }
 }
 
 #[ruda(launch)]

@@ -6,7 +6,7 @@ mod received;
 mod projection;
 mod activation;
 pub use projection::{ExpertProjectionCache,expert_projection};
-pub use activation::{SwiGluActivationSelection,SwiGluActivationBackward,swiglu_activation,swiglu_activation_backward};
+pub use activation::{SwiGluActivationSelection,SwiGluActivationBackward,swiglu_activation,swiglu_activation_reference,swiglu_activation_backward};
 #[cfg(feature="tensor-nf4-moe")]
 mod nf4;
 #[cfg(feature="tensor-nf4-moe")]

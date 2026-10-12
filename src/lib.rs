@@ -38,3 +38,6 @@ pub mod ctc;
 
 #[cfg(feature = "tensor-paged-attention")]
 pub mod paged_attention;
+
+#[cfg(feature = "tensor-paged-attention")]
+pub mod dense_attention;

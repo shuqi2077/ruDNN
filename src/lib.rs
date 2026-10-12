@@ -11,6 +11,9 @@ pub mod normalization;
 #[cfg(feature = "tensor-gated-delta")]
 pub mod gated_delta;
 
+#[cfg(feature = "tensor-kda")]
+pub mod kda;
+
 #[cfg(feature = "tensor-moe")]
 pub mod moe;
 

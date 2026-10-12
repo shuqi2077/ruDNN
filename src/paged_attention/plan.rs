@@ -81,6 +81,8 @@ impl HostPlan {
     }
 
     pub fn query_count(&self) -> usize { self.queries }
+    pub fn page_count(&self) -> usize { self.pages }
+    pub fn page_size(&self) -> usize { self.page_size }
     pub fn sequence_count(&self) -> usize { self.sequences }
 
     /// Required for appending token K/V: duplicate physical writes are rejected.

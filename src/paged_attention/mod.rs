@@ -2,6 +2,7 @@
 //! No model names, host tensor readback, padded KV gather or per-head KV repeat.
 //! Finite Q/K/V inputs are required; non-finite arithmetic propagates normally.
 mod kernel;
+mod quantized;
 mod plan;
 mod workspace;
 mod history_index;

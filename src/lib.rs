@@ -14,6 +14,9 @@ pub mod gated_delta;
 #[cfg(feature = "tensor-kda")]
 pub mod kda;
 
+#[cfg(any(feature = "tensor-kda", feature = "tensor-gated-delta"))]
+pub mod sequence_graph;
+
 #[cfg(feature = "tensor-moe")]
 pub mod moe;
 
@@ -44,3 +47,8 @@ pub mod paged_attention;
 
 #[cfg(feature = "tensor-paged-attention")]
 pub mod dense_attention;
+
+#[cfg(feature = "tensor-paged-attention")]
+pub mod varlen_attention;
+#[cfg(feature = "tensor-paged-attention")]
+pub mod ring_attention;

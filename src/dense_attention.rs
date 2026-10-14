@@ -17,7 +17,7 @@ fn mask_offset(mask: &Tensor<f32>, position: usize) -> usize {
 }
 
 #[ruda]
-fn keep(position: usize, seed_low: u32, seed_high: u32, base_low: u32, base_high: u32, p: f32) -> f32 {
+pub(crate) fn keep(position: usize, seed_low: u32, seed_high: u32, base_low: u32, base_high: u32, p: f32) -> f32 {
     let block = u32::cast_from(position / 4);
     let mut a = base_low + block;
     let mut b = base_high;
@@ -43,11 +43,38 @@ fn keep(position: usize, seed_low: u32, seed_high: u32, base_low: u32, base_high
     result
 }
 
+#[ruda]
+pub(crate) fn keep_global(position: i64, seed_low: u32, seed_high: u32,
+    base_low: u32, base_high: u32, p: f32) -> f32 {
+    let block = position / 4;
+    let low = base_low + u32::cast_from(block);
+    let mut high = base_high + u32::cast_from(block >> 32);
+    if low < base_low { high += 1; }
+    keep(usize::cast_from(position % 4), seed_low, seed_high, low, high, p)
+}
+
+#[ruda(launch)]
+pub fn dropout_mask<F: Float>(output: &mut Array<F>, heads: u32, queries: u32, keys: u32,
+    global_heads: i64, global_queries: i64, global_keys: i64, head_start: i64, query_start: i64, key_start: i64,
+    p: f32, seed_low: u32, seed_high: u32, base_low: u32, base_high: u32, #[define(F)] _dtype: StorageType) {
+    let index = ABSOLUTE_POS;
+    if index < output.len() {
+        let key = index % keys as usize;
+        let query = (index / keys as usize) % queries as usize;
+        let head = (index / keys as usize / queries as usize) % heads as usize;
+        let batch = index / keys as usize / queries as usize / heads as usize;
+        let position = (((i64::cast_from(batch) * global_heads + head_start + i64::cast_from(head)) * global_queries
+            + query_start + i64::cast_from(query)) * global_keys) + key_start + i64::cast_from(key);
+        output[index] = F::cast_from(keep_global(position, seed_low, seed_high, base_low, base_high, p));
+    }
+}
+
 #[ruda(launch)]
 pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tensor<f32>,
     out: &mut Array<F>, stats: &mut Array<f32>,
     heads: u32, kv_heads: u32, queries: u32, keys: u32, scale: f32, p: f32,
     seed_low: u32, seed_high: u32, base_low: u32, base_high: u32,
+    global_heads: i64, head_start: i64,
     #[comptime] key_dim: usize, #[comptime] value_dim: usize,
     #[comptime] lanes: usize, #[comptime] causal: bool, #[comptime] mask_kind: u32,
     #[comptime] dropout: bool, #[define(F)] _dtype: StorageType) {
@@ -55,6 +82,8 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tensor
     let lane = UNIT_POS as usize;
     let head = (row / queries as usize) % heads as usize;
     let batch = row / (heads as usize * queries as usize);
+    let rng_row = ((i64::cast_from(batch) * global_heads + head_start + i64::cast_from(head)) * i64::cast_from(queries))
+        + i64::cast_from(row % queries as usize);
     let kh = head / (heads / kv_heads) as usize;
     let mut query = Array::<f32>::new((key_dim + lanes - 1) / lanes);
     let mut acc = Array::<f32>::new((value_dim + lanes - 1) / lanes);
@@ -98,7 +127,7 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tensor
             maximum = next_max;
         }
         let mut multiplier = 1.0f32;
-        if comptime!(dropout) { multiplier = keep(row * keys as usize + token, seed_low, seed_high, base_low, base_high, p); }
+        if comptime!(dropout) { multiplier = keep_global(rng_row * i64::cast_from(keys) + i64::cast_from(token), seed_low, seed_high, base_low, base_high, p); }
         let mut dropped_weight = weight * multiplier;
         if comptime!(dropout) { if p == 1.0 { dropped_weight = 0.0; } }
         let mut accumulator_scale = old_scale;
@@ -128,6 +157,7 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tenso
     dk: &mut Array<Atomic<f32>>, dv: &mut Array<Atomic<f32>>, dm: &mut Array<Atomic<f32>>,
     heads: u32, kv_heads: u32, queries: u32, keys: u32, scale: f32, p: f32,
     seed_low: u32, seed_high: u32, base_low: u32, base_high: u32,
+    global_heads: i64, head_start: i64,
     #[comptime] key_dim: usize, #[comptime] value_dim: usize, #[comptime] lanes: usize,
     #[comptime] causal: bool, #[comptime] mask_kind: u32, #[comptime] dropout: bool,
     #[comptime] need_mask: bool, #[define(F)] _dtype: StorageType) {
@@ -135,6 +165,8 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tenso
     let lane = UNIT_POS as usize;
     let head = (row / queries as usize) % heads as usize;
     let batch = row / (heads as usize * queries as usize);
+    let rng_row = ((i64::cast_from(batch) * global_heads + head_start + i64::cast_from(head)) * i64::cast_from(queries))
+        + i64::cast_from(row % queries as usize);
     let kh = head / (heads / kv_heads) as usize;
     let maximum = stats[row * 2];
     let denominator = stats[row * 2 + 1];
@@ -182,7 +214,7 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tenso
             let mut probability = 0.0f32;
             if allowed && denominator != 0.0 { probability = (score - maximum).exp() / denominator; }
             let mut multiplier = 1.0f32;
-            if comptime!(dropout) { multiplier = keep(row * keys as usize + token, seed_low, seed_high, base_low, base_high, p); }
+            if comptime!(dropout) { multiplier = keep_global(rng_row * i64::cast_from(keys) + i64::cast_from(token), seed_low, seed_high, base_low, base_high, p); }
             let mut dp = plane_sum(dp_local) * multiplier;
             if comptime!(dropout) { if p == 1.0 { dp = 0.0; } }
             if pass == 0 { expected += probability * dp; }

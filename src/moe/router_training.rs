@@ -129,6 +129,47 @@ pub unsafe fn selected_router_backward_into<R: Runtime>(logits: &RudaTensor<R>, 
     Ok(())
 }
 
+/// Prepares the existing router kernel without submitting it to the device.
+///
+/// # Safety
+/// Output must be disjoint from both inputs and remain unchanged by other work
+/// until all replays of the prepared kernel complete.
+pub unsafe fn prepare_selected_router_weights<R:Runtime>(logits:&RudaTensor<R>,indices:&RudaTensor<R>,
+    output:&RudaTensor<R>,options:RouterWeightOptions)->Result<Vec<PreparedKernel<R>>,MoeError>
+{
+    let (tokens,experts,k,lanes)=validate(logits,indices,options)?;same_queue(logits,output)?;
+    if output.meta.shape()!=indices.meta.shape() || output.dtype!=DType::F32 {
+        return Err(MoeError("router weight output must be matching FP32 storage"));
+    }
+    if tokens==0 {return Ok(Vec::new());}
+    Ok(vec![unsafe {kernels::router_training::weights::prepare::<R>(&logits.client,
+        RudaCount::Static(tokens as u32,1,1),RudaDim::new_1d(lanes),logits.clone().into_array_arg(),
+        indices.clone().into_array_arg(),output.clone().into_array_arg(),experts,k,lanes as usize,
+        options.scoring==RouterScoring::Softmax,options.renormalize,options.scale,[logits.dtype.into(),indices.dtype.into()])}])
+}
+
+/// Prepares the same first-order router adjoint used by the immediate API.
+///
+/// # Safety
+/// Output must not alias any input. Inputs must describe the matching forward
+/// and remain unchanged during each replay; all operands share one queue.
+pub unsafe fn prepare_selected_router_backward<R:Runtime>(logits:&RudaTensor<R>,indices:&RudaTensor<R>,
+    grad_weights:&RudaTensor<R>,output:&RudaTensor<R>,options:RouterWeightOptions)->Result<Vec<PreparedKernel<R>>,MoeError>
+{
+    let (tokens,experts,k,lanes)=validate(logits,indices,options)?;
+    same_queue(logits,grad_weights)?;same_queue(logits,output)?;
+    if grad_weights.meta.shape()!=indices.meta.shape() || grad_weights.dtype!=DType::F32
+        || output.meta.shape()!=logits.meta.shape() || output.dtype!=logits.dtype {
+        return Err(MoeError("router backward gradient shape/dtype mismatch"));
+    }
+    if tokens==0 {return Ok(Vec::new());}
+    Ok(vec![unsafe {kernels::router_training::backward::prepare::<R>(&logits.client,
+        RudaCount::Static(tokens as u32,1,1),RudaDim::new_1d(lanes),logits.clone().into_array_arg(),
+        indices.clone().into_array_arg(),grad_weights.clone().into_array_arg(),output.clone().into_array_arg(),
+        experts,k,lanes as usize,options.scoring==RouterScoring::Softmax,options.renormalize,options.scale,
+        [logits.dtype.into(),indices.dtype.into()])}])
+}
+
 /// Holds the same logits/selection for forward and backward. Rust callers must
 /// not mutate shared input handles before backward (PyTorch enforces versions).
 #[derive(Debug, Clone)]

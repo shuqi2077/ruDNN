@@ -96,7 +96,8 @@ pub use grouped_routing::{GroupRoutingOptions,route_sigmoid_grouped};
 mod router_training;
 pub use router_training::{RouterScoring, RouterWeightOptions, RouterTrainingPlan,
     selected_router_weights, selected_router_weights_into,
-    selected_router_backward, selected_router_backward_into};
+    selected_router_backward, selected_router_backward_into,
+    prepare_selected_router_weights, prepare_selected_router_backward};
 
 #[cfg(test)]
 mod tests_v31;

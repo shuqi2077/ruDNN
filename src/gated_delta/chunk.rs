@@ -35,8 +35,23 @@ pub fn chunk_gated_delta_rule<R: Runtime>(
     chunk_impl(input, chunk_size, #[cfg(test)] None)
 }
 
+pub fn chunk_gated_delta_rule_with_history<R: Runtime>(input: GatedDeltaInput<R>, chunk_size: usize)
+    -> Result<super::GatedDeltaHistoryOutput<R>, GatedDeltaError> {
+    let mut states = Vec::new();
+    let result = chunk_history_impl(input, chunk_size, Some(&mut states), #[cfg(test)] None)?;
+    Ok(super::GatedDeltaHistoryOutput { result, states })
+}
+
 pub(super) fn chunk_impl<R: Runtime>(
     input: GatedDeltaInput<R>, chunk_size: usize,
+    #[cfg(test)] observe: Option<&mut dyn FnMut(usize, &str, RudaTensor<R>)>,
+) -> Result<GatedDeltaOutput<R>, GatedDeltaError> {
+    chunk_history_impl(input, chunk_size, None, #[cfg(test)] observe)
+}
+
+fn chunk_history_impl<R: Runtime>(
+    input: GatedDeltaInput<R>, chunk_size: usize,
+    mut history: Option<&mut Vec<RudaTensor<R>>>,
     #[cfg(test)] mut observe: Option<&mut dyn FnMut(usize, &str, RudaTensor<R>)>,
 ) -> Result<GatedDeltaOutput<R>, GatedDeltaError> {
     let [batch, heads, sequence, kd, vd] = validate(&input)?;
@@ -140,6 +155,26 @@ pub(super) fn chunk_impl<R: Runtime>(
         kernel::write_output::launch::<R>(&client, count, dim,
             inter.into_array_arg(), intra.into_array_arg(), output.clone().into_array_arg(),
             sequence as u32, start as u32, c as u32, vd as u32, source(), dtype.into());
+        if let Some(history) = &mut history {
+            // Use the SAME solved chunk residual and FP32 product as the final
+            // state update. Do not rerun the recurrence or the model per token.
+            for length in 1..c.min(sequence - start) {
+                let keys = matrix(c, kd); let values = matrix(c, vd);
+                let (count, dim) = launch(h * c * kd);
+                kernel::prefix_keys::launch::<R>(&client, count, dim, k.clone().into_array_arg(),
+                    cumulative.clone().into_array_arg(), keys.clone().into_array_arg(),
+                    sequence as u32, start as u32, c as u32, kd as u32, length as u32, source(), dtype.into());
+                let (count, dim) = launch(h * c * vd);
+                kernel::prefix_residual::launch::<R>(&client, count, dim, residual.clone().into_array_arg(),
+                    values.clone().into_array_arg(), c as u32, vd as u32, length as u32, source());
+                let update = product(swap_dims(keys, 1, 2), values)?;
+                let prefix = matrix(kd, vd); let (count, dim) = launch(h * kd * vd);
+                kernel::prefix_state::launch::<R>(&client, count, dim, state.clone().into_array_arg(),
+                    update.into_array_arg(), cumulative.clone().into_array_arg(), prefix.clone().into_array_arg(),
+                    c as u32, (kd * vd) as u32, length as u32, source());
+                history.push(reshape(prefix, [batch, heads, kd, vd].into()));
+            }
+        }
         let update = product(swap_dims(prepare(&k, kd, 1.0, 4), 1, 2), residual)?;
         let next = matrix(kd, vd);
         let (count, dim) = launch(h * kd * vd);
@@ -147,6 +182,7 @@ pub(super) fn chunk_impl<R: Runtime>(
             update.into_array_arg(), cumulative.into_array_arg(), next.clone().into_array_arg(),
             c as u32, (kd * vd) as u32, source());
         state = next;
+        if let Some(history) = &mut history { history.push(reshape(state.clone(), [batch, heads, kd, vd].into())); }
     }
     Ok(GatedDeltaOutput { output, final_state: reshape(state, [batch, heads, kd, vd].into()) })
 }

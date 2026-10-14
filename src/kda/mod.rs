@@ -2,8 +2,10 @@
 //! See LICENSE.fla for the pinned algorithm reference and upstream license.
 mod chunk;
 mod kernel;
+mod prepared;
 
-pub use chunk::{chunk_kda, chunk_kda_backward};
+pub use chunk::{chunk_kda, chunk_kda_backward, chunk_kda_with_history};
+pub use prepared::{prepare_chunk_kda, prepare_chunk_kda_backward};
 
 use ruda_core::{device::Device, tensor::DType};
 use ruda_kernel::{dsl::Runtime, tensor::RudaTensor};
@@ -27,6 +29,11 @@ pub struct KdaOutput<R: Runtime> {
     pub final_state: RudaTensor<R>,
     /// Pre-chunk states [ceil(T/C),B,H,K,V], or None for inference.
     pub boundaries: Option<RudaTensor<R>>,
+}
+
+pub struct KdaHistoryOutput<R: Runtime> {
+    pub result: KdaOutput<R>,
+    pub states: Vec<RudaTensor<R>>,
 }
 
 pub struct KdaGradients<R: Runtime> {

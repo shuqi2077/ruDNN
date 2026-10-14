@@ -2,6 +2,44 @@ use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
 #[ruda(launch)]
+pub(crate) fn prefix_keys(key: &Array<f32>, decay: &Array<f32>, output: &mut Array<f32>,
+    chunk: u32, width: u32, length: u32, #[comptime] _source: String) {
+    let i = ABSOLUTE_POS;
+    if i >= output.len() { terminate!(); }
+    let c = chunk as usize; let d = width as usize;
+    let token = i / d % c; let head = i / d / c; let channel = i % d;
+    let mut value = 0f32;
+    if token < length as usize {
+        let mut cumulative = 0f32;
+        for j in token + 1..length as usize { cumulative += decay[(head * c + j) * d + channel]; }
+        value = key[i] * cumulative.exp();
+    }
+    output[i] = value;
+}
+
+#[ruda(launch)]
+pub(crate) fn prefix_residual(input: &Array<f32>, output: &mut Array<f32>,
+    chunk: u32, width: u32, length: u32, #[comptime] _source: String) {
+    let i = ABSOLUTE_POS;
+    if i < output.len() {
+        let mut value = 0f32;
+        if (i / width as usize % chunk as usize) < length as usize { value = input[i]; }
+        output[i] = value;
+    }
+}
+
+#[ruda(launch)]
+pub(crate) fn prefix_state(state: &Array<f32>, update: &Array<f32>, prefix: &Array<f32>,
+    output: &mut Array<f32>, chunk: u32, kd: u32, vd: u32, length: u32, #[comptime] _source: String) {
+    let i = ABSOLUTE_POS;
+    if i < output.len() {
+        let row = i / vd as usize;
+        let offset = (row / kd as usize * chunk as usize + length as usize - 1) * kd as usize + row % kd as usize;
+        output[i] = state[i] * prefix[offset] + update[i];
+    }
+}
+
+#[ruda(launch)]
 pub(crate) fn gather<F: Float>(input: &Array<F>, output: &mut Array<f32>,
     sequence: u32, start: u32, chunk: u32, width: u32,
     #[comptime] _source: String, #[define(F)] _dtype: StorageType)

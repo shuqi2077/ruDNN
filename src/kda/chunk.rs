@@ -143,6 +143,20 @@ impl<R: Runtime> Chunk<R> {
 pub fn chunk_kda<R: Runtime>(input: KdaInput<R>, chunk_size: usize, retain_boundaries: bool)
     -> Result<KdaOutput<R>, KdaError>
 {
+    forward_impl(input, chunk_size, retain_boundaries, None)
+}
+
+pub fn chunk_kda_with_history<R: Runtime>(input: KdaInput<R>, chunk_size: usize)
+    -> Result<super::KdaHistoryOutput<R>, KdaError>
+{
+    let mut states = Vec::new();
+    let result = forward_impl(input, chunk_size, false, Some(&mut states))?;
+    Ok(super::KdaHistoryOutput { result, states })
+}
+
+fn forward_impl<R: Runtime>(input: KdaInput<R>, chunk_size: usize, retain_boundaries: bool,
+    mut history: Option<&mut Vec<RudaTensor<R>>>) -> Result<KdaOutput<R>, KdaError>
+{
     let dims = validate(&input, chunk_size)?;
     let [batch, heads, t, k, v] = dims;
     let count = t.div_ceil(chunk_size);
@@ -164,17 +178,38 @@ pub fn chunk_kda<R: Runtime>(input: KdaInput<R>, chunk_size: usize, retain_bound
             input.beta.into_array_arg(), input.log_decay.into_array_arg(), input.initial_state.into_array_arg(),
             output.clone().into_array_arg(), final_state.clone().into_array_arg(),
             t as u32, v as u32, op.scale, k, op.lanes, source(), input.query.dtype.into());
+        if let Some(history) = &mut history { history.push(final_state.clone()); }
         return Ok(KdaOutput { output, final_state, boundaries });
     }
     for start in (0..t).step_by(op.c) {
         if let Some(saved) = &boundaries { op.boundary(&state, saved, start / op.c, false); }
         let p = op.prepare(&input, start);
         let (_, residual) = op.residual(&p, &state)?;
+        if let Some(history) = &mut history {
+            for length in 1..op.c.min(t - start) {
+                let keys = op.matrix(op.c, k); let values = op.matrix(op.c, v);
+                let (grid, dim) = op.grid(op.h * op.c * k);
+                kernel::prefix_keys::launch::<R>(&op.reference.client, grid, dim,
+                    p.k.clone().into_array_arg(), p.g.clone().into_array_arg(), keys.clone().into_array_arg(),
+                    op.c as u32, k as u32, length as u32, source());
+                let (grid, dim) = op.grid(op.h * op.c * v);
+                kernel::prefix_residual::launch::<R>(&op.reference.client, grid, dim,
+                    residual.clone().into_array_arg(), values.clone().into_array_arg(),
+                    op.c as u32, v as u32, length as u32, source());
+                let update = op.product(transpose(&keys), values)?;
+                let saved = op.matrix(k, v); let (grid, dim) = op.grid(op.h * k * v);
+                kernel::prefix_state::launch::<R>(&op.reference.client, grid, dim,
+                    state.clone().into_array_arg(), update.into_array_arg(), p.prefix.clone().into_array_arg(),
+                    saved.clone().into_array_arg(), op.c as u32, k as u32, v as u32, length as u32, source());
+                history.push(reshape(saved, [batch, heads, k, v].into()));
+            }
+        }
         let inter = op.product(p.qg, state.clone())?;
         let intra = op.product(p.attention, residual.clone())?;
         op.scatter(op.combine(inter, intra, 1.0), &output, start, v);
         let update = op.product(transpose(&p.kt), residual)?;
         state = op.update(state, update, &p.prefix);
+        if let Some(history) = &mut history { history.push(reshape(state.clone(), [batch, heads, k, v].into())); }
     }
     Ok(KdaOutput { output, final_state: reshape(state, [batch,heads,k,v].into()), boundaries })
 }

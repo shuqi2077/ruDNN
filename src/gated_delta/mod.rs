@@ -1,8 +1,10 @@
 mod kernel;
 mod chunk;
 mod chunk_kernel;
+mod prepared;
 
-pub use chunk::chunk_gated_delta_rule;
+pub use chunk::{chunk_gated_delta_rule, chunk_gated_delta_rule_with_history};
+pub use prepared::prepare_chunk_gated_delta_rule;
 
 use ruda_core::{
     device::Device,
@@ -27,6 +29,12 @@ pub struct GatedDeltaInput<R: Runtime> {
 pub struct GatedDeltaOutput<R: Runtime> {
     pub output: RudaTensor<R>,
     pub final_state: RudaTensor<R>,
+}
+
+pub struct GatedDeltaHistoryOutput<R: Runtime> {
+    pub result: GatedDeltaOutput<R>,
+    /// FP32 [batch, heads, key_dim, value_dim] state after each real input token.
+    pub states: Vec<RudaTensor<R>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

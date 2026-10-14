@@ -187,3 +187,40 @@ pub(crate) fn update_state(
         output[i] = initial[i] * cumulative[(head + 1) * chunk as usize - 1].exp() + update[i];
     }
 }
+
+#[ruda(launch)]
+pub(crate) fn prefix_keys<F: Float>(key: &Array<F>, cumulative: &Array<f32>, output: &mut Array<f32>,
+    sequence: u32, start: u32, chunk: u32, width: u32, length: u32,
+    #[comptime] _source: String, #[define(F)] _dtype: StorageType) {
+    let i = ABSOLUTE_POS;
+    if i < output.len() {
+        let w = width as usize; let c = chunk as usize; let row = i / w;
+        let head = row / c; let local = row % c; let mut value = 0f32;
+        if local < length as usize {
+            value = f32::cast_from(key[(head * sequence as usize + start as usize + local) * w + i % w]);
+            value *= (cumulative[head * c + length as usize - 1] - cumulative[row]).exp();
+        }
+        output[i] = value;
+    }
+}
+
+#[ruda(launch)]
+pub(crate) fn prefix_residual(residual: &Array<f32>, output: &mut Array<f32>, chunk: u32, width: u32,
+    length: u32, #[comptime] _source: String) {
+    let i = ABSOLUTE_POS;
+    if i < output.len() {
+        let mut value = 0f32;
+        if (i / width as usize % chunk as usize) < length as usize { value = residual[i]; }
+        output[i] = value;
+    }
+}
+
+#[ruda(launch)]
+pub(crate) fn prefix_state(initial: &Array<f32>, update: &Array<f32>, cumulative: &Array<f32>,
+    output: &mut Array<f32>, chunk: u32, state_size: u32, length: u32, #[comptime] _source: String) {
+    let i = ABSOLUTE_POS;
+    if i < output.len() {
+        let head = i / state_size as usize;
+        output[i] = initial[i] * cumulative[head * chunk as usize + length as usize - 1].exp() + update[i];
+    }
+}

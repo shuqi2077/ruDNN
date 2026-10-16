@@ -10,6 +10,9 @@ pub(crate) fn conv_data_backward_fallback<R: Runtime, const N_DIM: usize>(
     in_shape: Shape,
     options: ConvOptions<N_DIM>,
 ) -> Result<RudaTensor<R>, ConvSetupError> {
+    let strategy = if out_grad.dtype == ruda_core::tensor::DType::F64 {
+        crate::convolution::tensor::ConvTranspose2dStrategy::Direct
+    } else { Default::default() };
     let dim_c = out_grad.rank();
 
     let kernel_size = &weights.meta.shape()[1..dim_c];
@@ -57,7 +60,7 @@ pub(crate) fn conv_data_backward_fallback<R: Runtime, const N_DIM: usize>(
                 [options.dilation[0], options.dilation[1]],
                 options.groups,
             ),
-            Default::default(),
+            strategy,
         ),
         3 => Ok(conv_transpose3d(
             out_grad,
@@ -86,6 +89,9 @@ fn conv_transpose1d_from_conv_transpose2d<R: Runtime>(
     weight: RudaTensor<R>,
     options: ConvTransposeOptions<1>,
 ) -> Result<RudaTensor<R>, ConvSetupError> {
+    let strategy = if x.dtype == ruda_core::tensor::DType::F64 {
+        crate::convolution::tensor::ConvTranspose2dStrategy::Direct
+    } else { Default::default() };
     let [channels_in, channels_out, kernel_size] = weight.shape().dims();
     let [batch_size, _channels_in, length_in] = x.shape().dims();
 
@@ -106,7 +112,7 @@ fn conv_transpose1d_from_conv_transpose2d<R: Runtime>(
             [options.dilation[0], 1],
             options.groups,
         ),
-        Default::default(),
+        strategy,
     )?;
     let [batch_size, channels_out, height_out, _weight_out] = tensor.shape().dims();
     Ok(reshape(

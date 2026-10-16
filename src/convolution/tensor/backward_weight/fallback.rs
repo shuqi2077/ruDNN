@@ -23,6 +23,9 @@ fn conv_weight_grad_no_groups<R: Runtime, const N_DIM: usize>(
     weight_shape: Shape,
     options: ConvOptions<N_DIM>,
 ) -> Result<RudaTensor<R>, ConvSetupError> {
+    let strategy = if input.dtype == ruda_core::tensor::DType::F64 {
+        crate::convolution::tensor::ConvStrategy::Direct
+    } else { Default::default() };
     let dim_c = input.rank() - 1;
 
     let input_swapped = swap_dims(input, 0, dim_c);
@@ -32,7 +35,7 @@ fn conv_weight_grad_no_groups<R: Runtime, const N_DIM: usize>(
         out_grad_swapped,
         None,
         ConvOptions::new(options.dilation, options.padding, options.stride, 1),
-        Default::default(),
+        strategy,
     )?;
     let mut weight_grad = swap_dims(weight_grad_swapped, 0, dim_c);
     if weight_grad.shape() != weight_shape {
@@ -78,12 +81,15 @@ fn conv_weight_grad_groups<R: Runtime, const N_DIM: usize>(
         let input = slice(input_swapped.clone(), &[start_idx_ci..end_idx_ci]);
         let grad = slice(output_grad_swapped.clone(), &[start_idx_co..end_idx_co]);
 
+        let strategy = if input.dtype == ruda_core::tensor::DType::F64 {
+            crate::convolution::tensor::ConvStrategy::Direct
+        } else { Default::default() };
         let weight_grad_tmp = conv_forward_nhwc(
             input,
             grad,
             None,
             ConvOptions::new(options.dilation, options.padding, options.stride, 1),
-            Default::default(),
+            strategy,
         )?;
         let mut weight_grad_tmp = swap_dims(weight_grad_tmp, 0, dim_c);
         let kernel_size_tmp = &weight_grad_tmp.meta.shape()[1..dim_c];

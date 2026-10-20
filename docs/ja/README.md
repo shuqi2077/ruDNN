@@ -36,13 +36,13 @@ cargo build --release --locked -p ruDNN --features tensor-normalization
 
 ## ドキュメント
 
-- [ユーザーガイド](../../../docs/ja/libraries/rudnn.md)
-- [環境設定](../../../docs/ja/getting-started.md)
+- [ユーザーガイド](../../../../docs/ja/libraries/rudnn.md)
+- [環境設定](../../../../docs/ja/getting-started.md)
 - [Cargo 機能](../../Cargo.toml) · [モジュール エクスポート](../../src/lib.rs)
 
 ## ruDNN ユーザーガイド
 
-[計算ライブラリ](../../../docs/ja/libraries/README.md) · [ruBLAS](../../../docs/ja/libraries/rublas.md) · [テンソルとフレームワーク](../../../docs/ja/tensor-framework.md) · [中文](../zh/README.md)
+[計算ライブラリ](../../../../docs/ja/libraries/README.md) · [ruBLAS](../../../../docs/ja/libraries/rublas.md) · [テンソルとフレームワーク](../../../../docs/ja/tensor-framework.md) · [中文](../zh/README.md)
 
 ### 1. 概要と特徴
 
@@ -230,7 +230,7 @@ fn delta_prefill<R: Runtime>(
 
 `chunk_size` は正でなければならず、三角形の作業領域 `4 × (chunk_size² + chunk_size)` バイトがデバイスのワークグループ当たりの共有メモリ上限を超えてはいけません。エントリポイントは最後のチャンクをパディングしますが、そのパディングは出力から除外します。無効な引数には `GatedDeltaError` を返します。
 
-モデルレベルのテキストおよび画像の呼び出しについては、[ruLLM 推論ガイド](../../../docs/ja/model-inference.md) を参照してください。
+モデルレベルのテキストおよび画像の呼び出しについては、[ruLLM 推論ガイド](../../../../docs/ja/model-inference.md) を参照してください。
 
 ### 9. ページ化アテンションと MLA
 

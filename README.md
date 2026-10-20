@@ -1,6 +1,6 @@
 # ruDNN
 
-**English** | [简体中文](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/docs/zh/README.md) | [日本語](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/docs/ja/README.md) | [Deutsch](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/docs/de/README.md) | [Русский](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/docs/ru/README.md)
+**English** | [简体中文](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/docs/zh/README.md) | [日本語](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/docs/ja/README.md) | [Deutsch](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/docs/de/README.md) | [Русский](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/docs/ru/README.md)
 
 Neural network operators for Ruda.
 
@@ -36,11 +36,11 @@ cargo build --release --locked -p ruDNN --features tensor-normalization
 
 - [User guide](https://github.com/shuqi2077/RUDA/blob/main/docs/en/libraries/rudnn.md)
 - [Environment setup](https://github.com/shuqi2077/RUDA/blob/main/docs/en/getting-started.md)
-- [Cargo features](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/Cargo.toml) · [Module exports](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/src/lib.rs)
+- [Cargo features](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/Cargo.toml) · [Module exports](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/src/lib.rs)
 
 ## ruDNN User Guide
 
-[Compute libraries](https://github.com/shuqi2077/RUDA/blob/main/docs/en/libraries/README.md) · [ruBLAS](https://github.com/shuqi2077/RUDA/blob/main/docs/en/libraries/rublas.md) · [Tensors and frameworks](https://github.com/shuqi2077/RUDA/blob/main/docs/en/tensor-framework.md) · [中文](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/docs/zh/README.md)
+[Compute libraries](https://github.com/shuqi2077/RUDA/blob/main/docs/en/libraries/README.md) · [ruBLAS](https://github.com/shuqi2077/RUDA/blob/main/docs/en/libraries/rublas.md) · [Tensors and frameworks](https://github.com/shuqi2077/RUDA/blob/main/docs/en/tensor-framework.md) · [中文](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/docs/zh/README.md)
 
 ### 1. Overview and features
 
@@ -57,7 +57,7 @@ ruDNN provides neural network operations. The Cargo package is `ruDNN` and the R
 | `tensor-normalization` | General-purpose device normalization for model layers |
 | `tensor-gated-delta` | Gated-delta computation for hybrid architectures such as Qwen3.5 |
 
-Attention and convolution each have corresponding autotune features. See [Cargo.toml](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/Cargo.toml) and [module exports](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/src/lib.rs).
+Attention and convolution each have corresponding autotune features. See [Cargo.toml](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/Cargo.toml) and [module exports](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/src/lib.rs).
 
 ### 2. Attention and convolution
 
@@ -67,7 +67,7 @@ Attention and convolution each have corresponding autotune features. See [Cargo.
 
 Strategies include FlashBlackboxAccelerated, FlashUnit, Fallback, and Autotune when its feature is enabled. The default is Fallback without autotuning and Autotune with it. Fallback uses multiple kernels on the same device, not a CPU backend.
 
-Match layout, mask, and precision to the selected strategy. See the [attention interface](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/src/attention/tensor/base.rs).
+Match layout, mask, and precision to the selected strategy. See the [attention interface](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/src/attention/tensor/base.rs).
 
 #### Convolution
 
@@ -75,7 +75,7 @@ Match layout, mask, and precision to the selected strategy. See the [attention i
 
 Strategies include Direct, ImplicitGemm, and optional Autotune. The entry point uses Direct for three-dimensional F32 convolution. Grouped convolution also uses Direct when ImplicitGemm is selected. The strategy parameter is therefore not always a strict request to retain one algorithm.
 
-The same module provides conv_data_backward and conv_weight_backward. Check shape, options, and execution requirements for each direction. See the [convolution interface](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/src/convolution/tensor/base.rs).
+The same module provides conv_data_backward and conv_weight_backward. Check shape, options, and execution requirements for each direction. See the [convolution interface](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/src/convolution/tensor/base.rs).
 
 ### 3. MoE workflow
 
@@ -109,7 +109,7 @@ Input tokens have shape [T, H]; gate and up have shape [E, I, H]; down has shape
 
 Dispatch does not drop tokens to enforce capacity. Atomic assignment order within an expert is not fixed; a saved mapping restores token order. The forward entry point takes precomputed logits rather than performing the model's gate projection or loading weight files.
 
-Source: [routing](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/src/moe/routing.rs), [dispatch and combine](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/src/moe/dispatch.rs), [experts](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/src/moe/experts.rs), and [tests](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/src/moe/tests.rs).
+Source: [routing](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/src/moe/routing.rs), [dispatch and combine](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/src/moe/dispatch.rs), [experts](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/src/moe/experts.rs), and [tests](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/src/moe/tests.rs).
 
 ### 6. Call MoE
 

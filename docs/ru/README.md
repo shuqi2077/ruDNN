@@ -36,13 +36,13 @@ cargo build --release --locked -p ruDNN --features tensor-normalization
 
 ## Документация
 
-- [Руководство пользователя](../../../../docs/ru/libraries/rudnn.md)
-- [Настройка среды](../../../../docs/ru/getting-started.md)
+- [Руководство пользователя](../../../docs/ru/libraries/rudnn.md)
+- [Настройка среды](../../../docs/ru/getting-started.md)
 - [Функции Cargo](../../Cargo.toml) · [Экспорт модулей](../../src/lib.rs)
 
 ## ruDNN Руководство пользователя
 
-[Вычислительные библиотеки](../../../../docs/ru/libraries/README.md) · [ruBLAS](../../../../docs/ru/libraries/rublas.md) · [Тензоры и платформы](../../../../docs/ru/tensor-framework.md) · [中文](../zh/README.md)
+[Вычислительные библиотеки](../../../docs/ru/libraries/README.md) · [ruBLAS](../../../docs/ru/libraries/rublas.md) · [Тензоры и платформы](../../../docs/ru/tensor-framework.md) · [中文](../zh/README.md)
 
 ### 1. Обзор и возможности
 
@@ -230,7 +230,7 @@ fn delta_prefill<R: Runtime>(
 
 `chunk_size` должен быть положительным, а треугольная рабочая область размером `4 × (chunk_size² + chunk_size)` байт не должна превышать лимит общей памяти устройства на рабочую группу. Точка входа дополняет последний блок; заполнение исключается из выхода. Недопустимые аргументы возвращают `GatedDeltaError`.
 
-Для вызовов текста и изображений на уровне модели см. [Руководство по выводу ruLLM](../../../../docs/ru/model-inference.md).
+Для вызовов текста и изображений на уровне модели см. [Руководство по выводу ruLLM](../../../docs/ru/model-inference.md).
 
 ### 9. Постраничное внимание и MLA
 

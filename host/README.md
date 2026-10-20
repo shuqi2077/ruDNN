@@ -30,6 +30,6 @@ Default features: `std`, `simd`, `rayon`.
 
 ## Links
 
-- [Package source](https://github.com/shuqi2077/RUDA/tree/main/crates/ruDNN/host/src)
-- [Cargo manifest](https://github.com/shuqi2077/RUDA/blob/main/crates/ruDNN/host/Cargo.toml)
+- [Package source](https://github.com/shuqi2077/RUDA/tree/main/ruDNN/host/src)
+- [Cargo manifest](https://github.com/shuqi2077/RUDA/blob/main/ruDNN/host/Cargo.toml)
 - [Ruda guide](https://github.com/shuqi2077/RUDA/blob/main/docs/en/libraries/rudnn.md)

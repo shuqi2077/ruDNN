@@ -36,13 +36,13 @@ cargo build --release --locked -p ruDNN --features tensor-normalization
 
 ## Dokumentation
 
-- [Benutzerhandbuch](../../../../docs/de/libraries/rudnn.md)
-- [Umgebungseinrichtung](../../../../docs/de/getting-started.md)
+- [Benutzerhandbuch](../../../docs/de/libraries/rudnn.md)
+- [Umgebungseinrichtung](../../../docs/de/getting-started.md)
 - [Cargo-Funktionen](../../Cargo.toml) · [Modulexporte](../../src/lib.rs)
 
 ## ruDNN Benutzerhandbuch
 
-[Computerbibliotheken](../../../../docs/de/libraries/README.md) · [ruBLAS](../../../../docs/de/libraries/rublas.md) · [Tensoren und Frameworks](../../../../docs/de/tensor-framework.md) · [中文](../zh/README.md)
+[Computerbibliotheken](../../../docs/de/libraries/README.md) · [ruBLAS](../../../docs/de/libraries/rublas.md) · [Tensoren und Frameworks](../../../docs/de/tensor-framework.md) · [中文](../zh/README.md)
 
 ### 1. Übersicht und Funktionen
 
@@ -230,7 +230,7 @@ Das zurückgegebene `output` hat die Form `[B, H, T, V]` und denselben dtype wie
 
 `chunk_size` muss positiv sein. Der dreieckige Arbeitsbereich von `4 × (chunk_size² + chunk_size)` Bytes darf das Shared-Memory-Limit des Geräts pro Arbeitsgruppe nicht überschreiten. Der Einstiegspunkt füllt den letzten Chunk auf; das Padding wird aus der Ausgabe ausgeschlossen. Ungültige Argumente liefern `GatedDeltaError`.
 
-Informationen zu Text- und Bildaufrufen auf Modellebene finden Sie im [ruLLM-Inferenzleitfaden](../../../../docs/de/model-inference.md).
+Informationen zu Text- und Bildaufrufen auf Modellebene finden Sie im [ruLLM-Inferenzleitfaden](../../../docs/de/model-inference.md).
 
 ### 9. Seitenbasierte Attention und MLA
 

@@ -147,7 +147,12 @@ fn pool_output_size(
     }
     let numerator = padded - effective_kernel;
     if ceil_mode {
-        numerator.div_ceil(stride) + 1
+        let out = numerator.div_ceil(stride) + 1;
+        if (out - 1) * stride >= input + padding {
+            out - 1
+        } else {
+            out
+        }
     } else {
         numerator / stride + 1
     }

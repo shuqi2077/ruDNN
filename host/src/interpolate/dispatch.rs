@@ -7,6 +7,10 @@ pub fn interpolate(
     options: InterpolateOptions,
 ) -> HostTensor {
     match (options.mode, x.dtype()) {
+        (InterpolateMode::NearestExact, DType::F32) => interpolate::interpolate_nearest_exact_f32(x, output_size, options.align_corners),
+        (InterpolateMode::NearestExact, DType::F64) => interpolate::interpolate_nearest_exact_f64(x, output_size, options.align_corners),
+        (InterpolateMode::NearestExact, DType::F16) => interpolate::interpolate_nearest_exact_f16(x, output_size, options.align_corners),
+        (InterpolateMode::NearestExact, DType::BF16) => interpolate::interpolate_nearest_exact_bf16(x, output_size, options.align_corners),
         (InterpolateMode::Nearest, DType::F32) => {
             interpolate::interpolate_nearest_f32(x, output_size, options.align_corners)
         }
@@ -69,6 +73,10 @@ pub fn interpolate_backward(
     options: InterpolateOptions,
 ) -> HostTensor {
     match (options.mode, x.dtype()) {
+        (InterpolateMode::NearestExact, DType::F32) => interpolate::interpolate_nearest_exact_backward_f32(x, grad, output_size, options.align_corners),
+        (InterpolateMode::NearestExact, DType::F64) => interpolate::interpolate_nearest_exact_backward_f64(x, grad, output_size, options.align_corners),
+        (InterpolateMode::NearestExact, DType::F16) => interpolate::interpolate_nearest_exact_backward_f16(x, grad, output_size, options.align_corners),
+        (InterpolateMode::NearestExact, DType::BF16) => interpolate::interpolate_nearest_exact_backward_bf16(x, grad, output_size, options.align_corners),
         (InterpolateMode::Nearest, DType::F32) => {
             interpolate::interpolate_nearest_backward_f32(
                 x,

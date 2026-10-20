@@ -21,6 +21,7 @@ fn interpolate_nearest_kernel<F: Float, N: Size>(
     shape_out: Sequence<FastDivmod<usize>>,
     out_layout: LinearLayout,
     #[comptime] max_value: usize,
+    #[comptime] exact: bool,
     #[define(F)] _dtype: StorageType,
 ) {
     if ABSOLUTE_POS >= output.len() {
@@ -39,8 +40,8 @@ fn interpolate_nearest_kernel<F: Float, N: Size>(
     let (rem, x) = shape_out[2].div_mod(rem);
     let (b, y) = shape_out[1].div_mod(rem);
 
-    let (y, _) = scaled_index_division(y, h_in, h_out, max_value);
-    let (x, _) = scaled_index_division(x, w_in, w_out, max_value);
+    let y = source_index(y, h_in, h_out, max_value, exact);
+    let x = source_index(x, w_in, w_out, max_value, exact);
 
     let in_idx =
         b * input.stride(0) + y * input.stride(1) + x * input.stride(2) + c * input.stride(3);
@@ -48,9 +49,32 @@ fn interpolate_nearest_kernel<F: Float, N: Size>(
     output[out_idx] = input[in_idx / vector_size];
 }
 
+#[ruda]
+fn source_index(index: usize, input_size: usize, output_size: usize,
+    #[comptime] max_value: usize, #[comptime] exact: bool) -> usize {
+    let (quotient, remainder) = scaled_index_division(index, input_size, output_size, max_value);
+    if exact {
+        let half = input_size / 2;
+        let shifted = quotient + half / output_size;
+        if remainder >= output_size - half % output_size {
+            shifted + 1
+        } else {
+            shifted
+        }
+    } else {
+        quotient
+    }
+}
+
 pub fn interpolate_nearest_launch<R: Runtime>(
     input: RudaTensor<R>,
     output: RudaTensor<R>,
+) -> RudaTensor<R> {
+    interpolate_nearest_launch_mode(input, output, false)
+}
+
+pub(super) fn interpolate_nearest_launch_mode<R: Runtime>(
+    input: RudaTensor<R>, output: RudaTensor<R>, exact: bool,
 ) -> RudaTensor<R> {
     let client = input.client.clone();
 
@@ -77,6 +101,7 @@ pub fn interpolate_nearest_launch<R: Runtime>(
             shape_out,
             out_layout,
             max_value,
+            exact,
             output.dtype.into(),
         )
     };

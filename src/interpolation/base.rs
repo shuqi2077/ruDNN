@@ -17,6 +17,8 @@ use super::{
     lanczos3::interpolate_lanczos3_launch, nearest::interpolate_nearest_launch,
     lanczos3_backward::interpolate_lanczos3_backward_launch,
     nearest_backward::interpolate_nearest_backward_launch,
+    nearest::interpolate_nearest_launch_mode,
+    nearest_backward::interpolate_nearest_backward_launch_mode,
 };
 
 pub(super) fn backward_types(output: DType, gradient: DType) -> [StorageType; 3] {
@@ -51,6 +53,7 @@ pub fn interpolate<R: Runtime>(
     let align_corners = options.align_corners;
     let output = match options.mode {
         InterpolateMode::Nearest => interpolate_nearest_launch(input, output),
+        InterpolateMode::NearestExact => interpolate_nearest_launch_mode(input, output, true),
         InterpolateMode::Bilinear => interpolate_bilinear_launch(input, output, align_corners),
         InterpolateMode::Bicubic => interpolate_bicubic_launch(input, output, align_corners),
         InterpolateMode::Lanczos3 => interpolate_lanczos3_launch(input, output, align_corners),
@@ -85,6 +88,7 @@ pub(super) fn backward_in_shape<R: Runtime>(reference: &RudaTensor<R>,
 
     let output = match options.mode {
         InterpolateMode::Nearest => interpolate_nearest_backward_launch(out_grad, output),
+        InterpolateMode::NearestExact => interpolate_nearest_backward_launch_mode(out_grad, output, true),
         InterpolateMode::Bilinear => {
             interpolate_bilinear_backward_launch(out_grad, output, options.align_corners)
         }

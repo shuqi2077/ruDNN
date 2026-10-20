@@ -84,6 +84,11 @@ interpolate_typed!(interpolate_nearest_f64, interpolate_nearest_impl, f64);
 interpolate_typed!(interpolate_nearest_f16, interpolate_nearest_impl, f16);
 interpolate_bf16!(interpolate_nearest_bf16, interpolate_nearest_f32);
 
+interpolate_typed!(interpolate_nearest_exact_f32, interpolate_nearest_exact_impl, f32);
+interpolate_typed!(interpolate_nearest_exact_f64, interpolate_nearest_exact_impl, f64);
+interpolate_typed!(interpolate_nearest_exact_f16, interpolate_nearest_exact_impl, f16);
+interpolate_bf16!(interpolate_nearest_exact_bf16, interpolate_nearest_exact_f32);
+
 interpolate_typed!(interpolate_bilinear_f32, interpolate_bilinear_impl, f32);
 interpolate_typed!(interpolate_bilinear_f64, interpolate_bilinear_impl, f64);
 interpolate_typed!(interpolate_bilinear_f16, interpolate_bilinear_impl, f16);
@@ -122,6 +127,11 @@ interpolate_backward_bf16!(
     interpolate_nearest_backward_bf16,
     interpolate_nearest_backward_f32
 );
+
+interpolate_backward_typed!(interpolate_nearest_exact_backward_f32, interpolate_nearest_exact_backward_impl, f32);
+interpolate_backward_typed!(interpolate_nearest_exact_backward_f64, interpolate_nearest_exact_backward_impl, f64);
+interpolate_backward_typed!(interpolate_nearest_exact_backward_f16, interpolate_nearest_exact_backward_impl, f16);
+interpolate_backward_bf16!(interpolate_nearest_exact_backward_bf16, interpolate_nearest_exact_backward_f32);
 
 interpolate_backward_typed!(
     interpolate_bilinear_backward_f32,
@@ -211,7 +221,12 @@ fn map_coord(out_coord: usize, ratio: f64, align_corners: bool) -> f64 {
 
 /// Precompute nearest-neighbor source index lookup table.
 /// Returns a Vec where `map[out_coord]` is the corresponding input coordinate.
-fn nearest_index_map(in_size: usize, out_size: usize) -> Vec<usize> {
+fn nearest_index_map(in_size: usize, out_size: usize, exact: bool) -> Vec<usize> {
+    if exact {
+        return (0..out_size)
+            .map(|o| ((o as u128 * in_size as u128 + (in_size / 2) as u128) / out_size as u128) as usize)
+            .collect();
+    }
     let ratio = in_size as f64 / out_size as f64;
     let max = in_size - 1;
     (0..out_size)
@@ -229,6 +244,22 @@ fn interpolate_nearest_impl<T>(
 where
     T: Float + ruda_core::tensor::element::Element + bytemuck::Pod + Send + Sync,
 {
+    interpolate_nearest_impl_mode::<T>(x, output_size, false)
+}
+
+fn interpolate_nearest_exact_impl<T>(x: HostTensor, output_size: [usize; 2],
+    _align_corners: bool) -> HostTensor
+where
+    T: Float + ruda_core::tensor::element::Element + bytemuck::Pod + Send + Sync,
+{
+    interpolate_nearest_impl_mode::<T>(x, output_size, true)
+}
+
+fn interpolate_nearest_impl_mode<T>(x: HostTensor, output_size: [usize; 2],
+    exact: bool) -> HostTensor
+where
+    T: Float + ruda_core::tensor::element::Element + bytemuck::Pod + Send + Sync,
+{
     let x = x.to_contiguous();
     let input = x.storage::<T>();
     let shape = x.layout().shape();
@@ -243,8 +274,8 @@ where
     );
     let [out_height, out_width] = output_size;
 
-    let y_map = nearest_index_map(in_height, out_height);
-    let x_map = nearest_index_map(in_width, out_width);
+    let y_map = nearest_index_map(in_height, out_height, exact);
+    let x_map = nearest_index_map(in_width, out_width, exact);
 
     let out_numel = batch * channels * out_height * out_width;
     let in_hw = in_height * in_width;

@@ -37,10 +37,10 @@ impl Layout for BiasLayout {
 }
 
 impl ViewLayoutLaunchArg for BiasLayout {
-    type RuntimeArg<R: Runtime> = ();
+    type RuntimeArg<R: LaunchMarker> = ();
     type CompilationArg = ();
 
-    fn register<R: Runtime, B: BufferArg>(
+    fn register<R: LaunchMarker, B: BufferArg>(
         _: Self::RuntimeArg<R>,
         buffer: &B,
         _: Type,

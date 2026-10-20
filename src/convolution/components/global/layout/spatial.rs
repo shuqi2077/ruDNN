@@ -248,10 +248,10 @@ pub struct NhwcLayoutCompilationArg {
 }
 
 impl ViewLayoutLaunchArg for NhwcLayout {
-    type RuntimeArg<R: Runtime> = NhwcLayoutLaunch;
+    type RuntimeArg<R: LaunchMarker> = NhwcLayoutLaunch;
     type CompilationArg = NhwcLayoutCompilationArg;
 
-    fn register<R: Runtime, B: BufferArg>(
+    fn register<R: LaunchMarker, B: BufferArg>(
         arg: Self::RuntimeArg<R>,
         buffer: &B,
         _: Type,

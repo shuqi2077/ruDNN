@@ -18,9 +18,9 @@ pub(crate) fn scaled_index_division(
     } else {
         let mut quotient = 0usize;
         let mut remainder = 0usize;
-        let mut shift = comptime![max_value.ilog2() as usize + 1];
-        while shift > 0 {
-            shift -= 1;
+        let bit_count = comptime![max_value.ilog2() as usize + 1];
+        for bit in 0..bit_count {
+            let shift = bit_count - bit - 1;
             if remainder >= denominator_extent - remainder {
                 remainder -= denominator_extent - remainder;
                 quotient = quotient * 2 + 1;

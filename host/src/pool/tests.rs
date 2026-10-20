@@ -16,6 +16,9 @@
         // ceil: ceil(3/2) + 1 = 3
         assert_eq!(pool_output_size(5, 2, 0, 2, 1, false), 2);
         assert_eq!(pool_output_size(5, 2, 0, 2, 1, true), 3);
+        assert_eq!(pool_output_size(7, 2, 1, 2, 1, true), 4);
+        assert_eq!(pool_output_size(5, 2, 1, 3, 2, true), 2);
+        assert_eq!(pool_output_size(5, 1, 0, 3, 1, true), 2);
 
         // With dilation: input=7, kernel=2, dilation=2
         // effective_kernel = 2*(2-1)+1 = 3

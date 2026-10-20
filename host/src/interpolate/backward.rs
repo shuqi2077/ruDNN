@@ -14,6 +14,22 @@ pub(super) fn interpolate_nearest_backward_impl<T>(
 where
     T: Float + ruda_core::tensor::element::Element + bytemuck::Pod + Send + Sync,
 {
+    interpolate_nearest_backward_impl_mode::<T>(x, grad, output_size, false)
+}
+
+pub(super) fn interpolate_nearest_exact_backward_impl<T>(x: HostTensor, grad: HostTensor,
+    output_size: [usize; 2], _align_corners: bool) -> HostTensor
+where
+    T: Float + ruda_core::tensor::element::Element + bytemuck::Pod + Send + Sync,
+{
+    interpolate_nearest_backward_impl_mode::<T>(x, grad, output_size, true)
+}
+
+fn interpolate_nearest_backward_impl_mode<T>(x: HostTensor, grad: HostTensor,
+    output_size: [usize; 2], exact: bool) -> HostTensor
+where
+    T: Float + ruda_core::tensor::element::Element + bytemuck::Pod + Send + Sync,
+{
     let grad = grad.to_contiguous();
     let grad_data = grad.storage::<T>();
     let shape = x.layout().shape();
@@ -28,8 +44,8 @@ where
     );
     let [out_height, out_width] = output_size;
 
-    let y_map = nearest_index_map(in_height, out_height);
-    let x_map = nearest_index_map(in_width, out_width);
+    let y_map = nearest_index_map(in_height, out_height, exact);
+    let x_map = nearest_index_map(in_width, out_width, exact);
 
     let in_numel = batch * channels * in_height * in_width;
     let in_hw = in_height * in_width;

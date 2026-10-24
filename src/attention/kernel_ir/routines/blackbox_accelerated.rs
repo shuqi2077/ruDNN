@@ -58,7 +58,11 @@ impl Routine for BlackboxAcceleratedRoutine {
     ) -> Result<LaunchInfo<Self::Blueprint>, AttentionSetupError> {
         let dtypes = AttentionElems::from_global_types(
             &problem.global_dtypes,
-            half::f16::as_type_native_unchecked().storage_type(),
+            if problem.global_dtypes.query == half::bf16::as_type_native_unchecked().storage_type() {
+                problem.global_dtypes.query
+            } else {
+                half::f16::as_type_native_unchecked().storage_type()
+            },
             &problem.options.accumulator_precision,
         );
 

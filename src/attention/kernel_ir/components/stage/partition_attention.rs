@@ -72,7 +72,7 @@ impl<
         let p = config.shared().partition_size;
 
         let head_dim_factor =
-            SM::<AP>::new(1.0) / SM::<AP>::cast_from(query_partition.head_dim).sqrt();
+            SM::<AP>::new(1.0) / SM::<AP>::cast_from(query_partition.head_dim.read()).sqrt();
 
         #[unroll]
         for kv in 0..p.seq_kv {
@@ -246,7 +246,7 @@ impl<
         registers: &mut QueryPartition<QT<AP>>,
         #[comptime] config: Self::Config,
     ) {
-        registers.head_dim = reader.head_dim();
+        registers.head_dim.store(reader.head_dim());
         let partition_seq_q = config.shared().partition_size.seq_q;
         let partition_head_dim = config.shared().partition_size.head_dim;
         let attention_tile_size = config.tile_size();

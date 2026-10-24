@@ -47,6 +47,8 @@ pub mod paged_attention;
 
 #[cfg(feature = "tensor-paged-attention")]
 pub mod dense_attention;
+#[cfg(feature = "tensor-paged-attention")]
+pub mod dense_attention_split;
 
 #[cfg(feature = "tensor-paged-attention")]
 pub mod varlen_attention;

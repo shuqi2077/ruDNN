@@ -49,6 +49,7 @@ serde = { version = "1.0.204", default-features = false, features = ["derive", "
 ruda-test-utils = { version = "0.1.104", path = "../ruda-test-utils", default-features = false, optional = true }
 
 [dev-dependencies]
+ruda-compiler = { path = "../ruda-compiler", default-features = false, features = ["ptx"] }
 ruda-test-runtime = { path = "../ruda-test-runtime", default-features = false, features = ["test-runtime"] }
 ruda-test-utils = { path = "../ruda-test-utils", default-features = false }
 pretty_assertions = "1.4"
@@ -58,6 +59,15 @@ trybuild = "1"
 name = "attention"
 path = "tests/attention/lib.rs"
 required-features = ["kernel-ir", "cpu-reference"]
+
+[[test]]
+name = "flash-training-layout"
+path = "src/flash_training/tests.rs"
+
+[[test]]
+name = "flash-training-ptx"
+path = "tests/flash_training_ptx.rs"
+required-features = ["tensor-paged-attention"]
 
 [[test]]
 name = "convolution"

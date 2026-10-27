@@ -84,15 +84,18 @@ fn contract_tile<F: Float>(weights: &SharedMemory<F>, input: &SharedMemory<F>,
 #[ruda(launch_unchecked)]
 pub fn contraction<F: Float>(grad: &Array<F>, stats: &Array<f32>, delta: &mut Array<f32>,
     #[define(F)] _dtype: StorageType) {
-    let lane = UNIT_POS as usize % 32;
-    let row = RUDA_POS_X as usize * 4 + UNIT_POS as usize / 32;
-    let mut sum = 0.0f32;
+    let lane = UNIT_POS as usize % 8;
+    let row = RUDA_POS_X as usize * 16 + UNIT_POS as usize / 8;
+    let first = row * 128 + lane * 8;
+    let mut sum = f32::cast_from(grad[first]) * stats[delta.len() * 2 + first];
     #[unroll]
-    for i in 0usize..4 {
-        let at = row * 128 + lane + i * 32;
-        sum += f32::cast_from(grad[at]) * stats[delta.len() * 2 + at];
+    for i in 1usize..16 {
+        let at = first + i / 8 * 64 + i % 8;
+        sum = fma(f32::cast_from(grad[at]), stats[delta.len() * 2 + at], sum);
     }
-    sum = plane_sum(sum);
+    sum += plane_shuffle_xor(sum, 4u32);
+    sum += plane_shuffle_xor(sum, 2u32);
+    sum += plane_shuffle_xor(sum, 1u32);
     if lane == 0 { delta[row] = sum; }
 }
 
@@ -204,7 +207,8 @@ fn key_value_impl<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, grad: &Arr
         let mut acc_v = Array::<Vector<f32, Const<2>>>::new(8usize);
         #[unroll]
         for i in 0usize..8 { acc_k[i] = Vector::new(0.0f32); acc_v[i] = Vector::new(0.0f32); }
-        for block in 0usize..8 {
+        for step in 0usize..8 {
+            let block = 7usize-step;
             stage(q, &mut q_tile, query + block * 64, 64usize, vectorized);
             stage(grad, &mut g_tile, query + block * 64, 64usize, vectorized);
             sync_ruda();

@@ -1,4 +1,23 @@
 #[test]
+fn contraction_eight_lane_groups_cover_each_head_once() {
+    let mut seen = vec![0usize; 16*128];
+    let mut writes = [0usize; 16];
+    for thread in 0usize..128 {
+        let row = thread/8;
+        let lane = thread%8;
+        for i in 0usize..16 {
+            let column = lane*8+i/8*64+i%8;
+            assert!(column<128);
+            seen[row*128+column] += 1;
+        }
+        for offset in [4,2,1] { assert_eq!((thread^offset)/8,row); }
+        if lane==0 { writes[row] += 1; }
+    }
+    assert!(seen.into_iter().all(|count|count==1));
+    assert!(writes.into_iter().all(|count|count==1));
+}
+
+#[test]
 fn vector_stage_covers_rows_without_padding_or_unaligned_access() {
     for rows in [16usize, 64, 128] {
         for row_base in [0usize, 16, 64, 512, 3584] {

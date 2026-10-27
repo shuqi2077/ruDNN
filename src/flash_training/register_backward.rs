@@ -176,7 +176,8 @@ pub fn key_value_registers<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, g
         acc_k.push(a);
         acc_v.push(b);
     }
-    for block in 0usize..8 {
+    for step in 0usize..8 {
+        let block = 7usize-step;
         stage(q,&mut q_tile,query+block*64,64usize,vectorized);
         stage(grad,&mut g_tile,query+block*64,64usize,vectorized);
         sync_ruda();

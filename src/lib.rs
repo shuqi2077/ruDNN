@@ -5,6 +5,18 @@ pub mod cann;
 
 pub mod attention;
 
+#[cfg(any(feature = "tensor-moe", feature = "ptx-export"))]
+mod warp_routing;
+
+#[cfg(any(feature = "tensor-moe", feature = "ptx-export"))]
+pub mod grouped_fp8;
+
+#[cfg(any(feature = "tensor-paged-attention", feature = "ptx-export"))]
+mod attention_state;
+
+#[cfg(feature = "ptx-export")]
+pub mod standalone;
+
 #[cfg(feature = "tensor-normalization")]
 pub mod normalization;
 

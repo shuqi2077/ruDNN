@@ -12,6 +12,7 @@ repository = "https://github.com/shuqi2077/RUDA"
 name = "rudnn"
 
 [features]
+ptx-export = ["kernel-ir", "ruda-kernel/device-tensor", "ruda-kernel/packed-quantization", "rublas/ptx-export"]
 tensor-paged-attention = ["kernel-ir", "ruda-kernel/device-tensor", "ruda-kernel/packed-quantization"]
 cann = ["dep:ruda-driver-cann"]
 tensor-normalization = ["kernel-ir", "ruda-kernel/device-tensor"]
@@ -59,6 +60,16 @@ trybuild = "1"
 name = "attention"
 path = "tests/attention/lib.rs"
 required-features = ["kernel-ir", "cpu-reference"]
+
+[[example]]
+name = "flashinfer-export"
+path = "examples/flashinfer_export/main.rs"
+required-features = ["ptx-export"]
+
+[[example]]
+name = "sol-export"
+path = "examples/sol_export/main.rs"
+required-features = ["ptx-export"]
 
 [[test]]
 name = "flash-training-layout"

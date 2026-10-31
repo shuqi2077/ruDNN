@@ -1,20 +1,28 @@
 //! One plane per packed query/head/partition. A single-partition specialization
 //! writes the final output; multi-partition specializations write FP32 online
-//! statistics for a separate stable merge. No score tensor or KV head repeat.
+//! statistics for a stable merge. With device-scope memory ordering, the last
+//! arriving partition performs that merge in the same launch.
 //! Page-table lookup and integer division are hoisted out of each token loop.
 use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
 
+#[ruda(fast_math = FastMath::ReducedPrecision.into())]
+pub(super) fn exp_fast(value: f32) -> f32 {
+    f32::powf(2.0f32, value * core::f32::consts::LOG2_E)
+}
+
 #[ruda(launch)]
 pub(super) fn attention<F: Float, O: Float>(
     q: &Array<F>, k: &Array<F>, v: &Array<F>, qp: &Array<F>, kp: &Array<F>,
-    metadata: &Array<u32>, out: &mut Array<O>, scale: f32,
+    metadata: &Array<u32>, out: &mut Array<O>, final_out: &mut Array<F>,
+    counters: &mut Array<Atomic<u32>>, scale: f32,
     queries: u32, sequences: u32, table_width: u32, page_size: u32,
     heads: u32, kv_heads: u32,
     #[comptime] key_dim: usize, #[comptime] value_dim: usize,
     #[comptime] position_dim: usize, #[comptime] lanes: usize,
     #[comptime] causal: bool, #[comptime] mla: bool,
     #[comptime] splits: usize,
+    #[comptime] fused_merge: bool,
     #[define(F)] _dtype: StorageType,
     #[define(O)] _output_dtype: StorageType,
 ) {
@@ -84,8 +92,8 @@ pub(super) fn attention<F: Float, O: Float>(
             let mut next_max=score;
             if token!=begin { next_max=f32::max(maximum,score); }
             let mut old_scale=0.0f32;
-            if token!=begin { old_scale=(maximum-next_max).exp(); }
-            let weight=(score-next_max).exp();
+            if token!=begin { old_scale=exp_fast(maximum-next_max); }
+            let weight=exp_fast(score-next_max);
             denominator=fma(denominator,old_scale,weight);
             #[unroll]
             for j in 0usize..((value_dim+lanes-1)/lanes) {
@@ -121,6 +129,20 @@ pub(super) fn attention<F: Float, O: Float>(
             out[offset]=O::cast_from(maximum);
             out[offset+1]=O::cast_from(denominator);
         }
+        if comptime!(fused_merge) {
+            // Publish every lane's partial before the completion counter. No
+            // block spins: only the last arrival reads and merges the partials.
+            sync_storage();
+            let mut previous = 0u32;
+            if lane == 0 { previous = counters[output_row].fetch_add(1u32); }
+            previous = plane_broadcast(previous, 0u32);
+            if previous == (splits - 1) as u32 {
+                sync_storage();
+                merge_row(out, final_out, output_row, value_dim, lanes, splits);
+                sync_storage();
+                if lane == 0 { counters[output_row].store(0u32); }
+            }
+        }
     }
 }
 
@@ -134,8 +156,16 @@ pub(super) fn merge<F: Float>(
 ) {
     let row=RUDA_POS_X as usize;
     let head=RUDA_POS_Y as usize;
-    let lane=UNIT_POS as usize;
     let output_row=row*heads as usize+head;
+    merge_row(partials, out, output_row, value_dim, lanes, splits);
+}
+
+#[ruda]
+fn merge_row<P: Float, F: Float>(
+    partials: &Array<P>, out: &mut Array<F>, output_row: usize,
+    #[comptime] value_dim: usize, #[comptime] lanes: usize, #[comptime] splits: usize,
+) {
+    let lane=UNIT_POS as usize;
     let mut acc=Array::<f32>::new((value_dim+lanes-1)/lanes);
     #[unroll]
     for j in 0usize..((value_dim+lanes-1)/lanes) { acc[j]=0.0; }
@@ -144,21 +174,21 @@ pub(super) fn merge<F: Float>(
     // Do not unroll up to 32 partitions: that would inflate the instruction body.
     for split in 0usize..splits {
         let offset=(output_row*splits+split)*(value_dim+2);
-        let part_den=partials[offset+value_dim+1];
+        let part_den=f32::cast_from(partials[offset+value_dim+1]);
         // Propagate NaNs instead of silently dropping a non-finite partition.
         if part_den != 0.0 {
-            let part_max=partials[offset+value_dim];
+            let part_max=f32::cast_from(partials[offset+value_dim]);
             let mut next_max=part_max;
             let mut old_scale=0.0f32;
             if denominator != 0.0 {
                 next_max=f32::max(maximum,part_max);
-                old_scale=(maximum-next_max).exp();
+                old_scale=exp_fast(maximum-next_max);
             }
-            let part_scale=(part_max-next_max).exp();
+            let part_scale=exp_fast(part_max-next_max);
             #[unroll]
             for j in 0usize..((value_dim+lanes-1)/lanes) {
                 let d=lane+j*lanes;
-                if d<value_dim { acc[j]=fma(partials[offset+d],part_scale,acc[j]*old_scale); }
+                if d<value_dim { acc[j]=fma(f32::cast_from(partials[offset+d]),part_scale,acc[j]*old_scale); }
             }
             denominator=fma(part_den,part_scale,denominator*old_scale);
             maximum=next_max;
@@ -309,8 +339,8 @@ pub(super) fn backward<F: Float>(
             let mut next_max = score;
             if token != 0 { next_max = f32::max(maximum, score); }
             let mut old_scale = 0.0f32;
-            if token != 0 { old_scale = (maximum - next_max).exp(); }
-            let weight = (score - next_max).exp();
+            if token != 0 { old_scale = exp_fast(maximum - next_max); }
+            let weight = exp_fast(score - next_max);
             denominator = fma(denominator, old_scale, weight);
             weighted_dp = fma(weighted_dp, old_scale, weight * dp);
             maximum = next_max;
@@ -365,7 +395,7 @@ pub(super) fn backward<F: Float>(
                 }
             }
             let score = plane_sum(partial) * scale;
-            let probability = if denominator == 0.0 { f32::cast_from(0.0f32) } else { (score - maximum).exp() / denominator };
+            let probability = if denominator == 0.0 { f32::cast_from(0.0f32) } else { exp_fast(score - maximum) / denominator };
             let mut dp_local = 0.0f32;
             let mut dp = 0.0f32;
             if comptime!(need_dq || need_dk || need_dqp || need_dkp || statistics_need_dp) {

@@ -12,6 +12,7 @@ pub const WORKSPACE_LIMIT_BYTES: usize = 64 * 1024 * 1024;
 /// The runtime retains submitted bindings until their stream-ordered work ends.
 pub struct SplitWorkspace<R: Runtime> {
     pub(super) tensor: RudaTensor<R>,
+    pub(super) counters: RudaTensor<R>,
     splits: usize,
     bytes: usize,
 }
@@ -24,7 +25,8 @@ impl<R: Runtime> SplitWorkspace<R> {
             return Err(PagedAttentionError("split workspace requires 2..32 splits and valid heads/value dimension"));
         }
         let elements=bounded(&[queries,heads,splits,value_dim+2])?;
-        elements.checked_mul(4).filter(|&b|b<=WORKSPACE_LIMIT_BYTES)
+        elements.checked_add(bounded(&[queries,heads])?).and_then(|n|n.checked_mul(4))
+            .filter(|&b|b<=WORKSPACE_LIMIT_BYTES)
             .ok_or(PagedAttentionError("split workspace exceeds 64 MiB limit"))
     }
 
@@ -38,10 +40,14 @@ impl<R: Runtime> SplitWorkspace<R> {
         }
         let tensor=empty_device_contiguous_dtype(like.client.clone(),like.device.clone(),
             Shape::from([queries,heads,splits,value_dim+2]),DType::F32);
-        Ok(Self{tensor,splits,bytes})
+        let counters=RudaTensor::new_contiguous(like.client.clone(),like.device.clone(),
+            Shape::from([queries,heads]),
+            like.client.create_from_slice(bytemuck::cast_slice(&vec![0u32;queries*heads])),DType::U32);
+        Ok(Self{tensor,counters,splits,bytes})
     }
     pub fn bytes(&self) -> usize { self.bytes }
     pub fn splits(&self) -> usize { self.splits }
+    pub fn fused_merge(&self) -> bool { self.tensor.client.features().device_memory_scope }
     pub fn matches(&self, like: &RudaTensor<R>, queries: usize, heads: usize, value_dim: usize, splits: usize) -> bool {
         self.splits==splits && self.tensor.meta.shape()[..]==[queries,heads,splits,value_dim+2]
             && self.tensor.device.to_id()==like.device.to_id()

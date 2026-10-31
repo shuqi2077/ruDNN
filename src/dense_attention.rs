@@ -78,8 +78,9 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tensor
     #[comptime] key_dim: usize, #[comptime] value_dim: usize,
     #[comptime] lanes: usize, #[comptime] causal: bool, #[comptime] mask_kind: u32,
     #[comptime] dropout: bool, #[define(F)] _dtype: StorageType) {
-    let row = RUDA_POS_X as usize;
-    let lane = UNIT_POS as usize;
+    let row = RUDA_POS_X as usize * (RUDA_DIM as usize / lanes) + UNIT_POS as usize / lanes;
+    let lane = UNIT_POS as usize % lanes;
+    if row >= stats.len() / 2 { return; }
     let head = (row / queries as usize) % heads as usize;
     let batch = row / (heads as usize * queries as usize);
     let rng_row = ((i64::cast_from(batch) * global_heads + head_start + i64::cast_from(head)) * i64::cast_from(queries))
@@ -121,8 +122,8 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tensor
             let mut next_max = score;
             if denominator != 0.0 { next_max = f32::max(maximum, score); }
             old_scale = 0.0;
-            if denominator != 0.0 { old_scale = (maximum - next_max).exp(); }
-            weight = (score - next_max).exp();
+            if denominator != 0.0 { old_scale = softmax_exp(maximum - next_max); }
+            weight = softmax_exp(score - next_max);
             denominator = fma(denominator, old_scale, weight);
             maximum = next_max;
         }
@@ -161,8 +162,9 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tenso
     #[comptime] key_dim: usize, #[comptime] value_dim: usize, #[comptime] lanes: usize,
     #[comptime] causal: bool, #[comptime] mask_kind: u32, #[comptime] dropout: bool,
     #[comptime] need_mask: bool, #[define(F)] _dtype: StorageType) {
-    let row = RUDA_POS_X as usize;
-    let lane = UNIT_POS as usize;
+    let row = RUDA_POS_X as usize * (RUDA_DIM as usize / lanes) + UNIT_POS as usize / lanes;
+    let lane = UNIT_POS as usize % lanes;
+    if row >= stats.len() / 2 { return; }
     let head = (row / queries as usize) % heads as usize;
     let batch = row / (heads as usize * queries as usize);
     let rng_row = ((i64::cast_from(batch) * global_heads + head_start + i64::cast_from(head)) * i64::cast_from(queries))
@@ -212,7 +214,7 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tenso
             }
             if comptime!(mask_kind == 2) { allowed = score != f32::NEG_INFINITY; }
             let mut probability = 0.0f32;
-            if allowed && denominator != 0.0 { probability = (score - maximum).exp() / denominator; }
+            if allowed && denominator != 0.0 { probability = softmax_exp(score - maximum) / denominator; }
             let mut multiplier = 1.0f32;
             if comptime!(dropout) { multiplier = keep_global(rng_row * i64::cast_from(keys) + i64::cast_from(token), seed_low, seed_high, base_low, base_high, p); }
             let mut dp = plane_sum(dp_local) * multiplier;
@@ -255,6 +257,9 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, mask: &Tenso
 // retaining FP32 probabilities and the unrounded Jacobian contraction.
 #[ruda(fast_math = FastMath::ReducedPrecision.into())]
 pub(crate) fn flash_exp2(value: f32) -> f32 { f32::powf(2.0f32,value) }
+
+#[ruda]
+pub(crate) fn softmax_exp(value:f32)->f32 { flash_exp2(value*core::f32::consts::LOG2_E) }
 
 #[ruda(fast_math = FastMath::ReducedPrecision | FastMath::NotNaN | FastMath::NotInf)]
 pub(crate) fn flash_log(value: f32) -> f32 { value.ln() }
@@ -410,7 +415,7 @@ pub fn backward_query_cached<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>,
         }
         if comptime!(mask_kind == 2) { allowed = score != f32::NEG_INFINITY; }
         let mut probability = 0.0f32;
-        if allowed && denominator != 0.0 { probability = (score - maximum).exp() / denominator; }
+        if allowed && denominator != 0.0 { probability = softmax_exp(score - maximum) / denominator; }
         if comptime!(flash) {
             probability = 0.0;
             if allowed { probability = flash_exp2(raw_score * (scale * 1.4426950408889634f32) - maximum * 1.4426950408889634f32); }
@@ -530,7 +535,7 @@ pub fn backward_kv_owned<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>,
         let mut probability = 0.0f32;
         let mut ds = 0.0f32;
         if allowed {
-            if stats[qr * 2 + 1] != 0.0 { probability = (score - stats[qr * 2]).exp() / stats[qr * 2 + 1]; }
+            if stats[qr * 2 + 1] != 0.0 { probability = softmax_exp(score - stats[qr * 2]) / stats[qr * 2 + 1]; }
             if comptime!(flash) { probability = flash_exp2(raw_score * (scale * 1.4426950408889634f32) - stats[qr * 2] * 1.4426950408889634f32); }
             ds = probability * (dp - delta[qr]);
         }

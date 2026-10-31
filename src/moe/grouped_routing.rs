@@ -1,6 +1,6 @@
 use super::{MoeError, RoutingPlan, elements, empty, float_tensor, kernels};
 use ruda_core::{device::Device,tensor::DType};
-use ruda_kernel::{dsl::{Runtime,calculate_ruda_count_elemwise,prelude::RudaDim},tensor::{RudaTensor,contiguous::into_contiguous}};
+use ruda_kernel::{dsl::{Runtime,calculate_ruda_count_elemwise,prelude::{RudaCount,RudaDim}},tensor::{RudaTensor,contiguous::into_contiguous}};
 
 /// Model configuration, not a model-name switch. Bias changes expert selection
 /// ONLY; returned weights always come from the uncorrected sigmoid scores.
@@ -45,12 +45,24 @@ pub fn route_sigmoid_grouped<R:Runtime>(logits:RudaTensor<R>, bias:Option<RudaTe
         let logits=into_contiguous(logits);let has_bias=bias.is_some();
         // When bias is absent the kernel's compile-time branch never reads this.
         let bias=bias.map(into_contiguous).unwrap_or_else(||empty(&logits,[1],DType::F32));
-        let dim=RudaDim::new(logits.client.properties(),tokens);
-        kernels::grouped_routing::route::launch::<R>(&logits.client,
+        let hw=&logits.client.properties().hardware;
+        if experts/options.groups==32 && options.groups<=16 && options.top_k<=32
+            && hw.plane_size_min==32 && hw.plane_size_max==32
+            && hw.max_units_per_ruda>=128 && hw.max_ruda_dim.0>=128
+            && tokens.div_ceil(4)<=hw.max_ruda_count.0 as usize {
+            kernels::grouped_routing::warp_route::launch::<R>(&logits.client,
+                RudaCount::Static(tokens.div_ceil(4) as u32,1,1),RudaDim::new_1d(128),
+                logits.clone().into_array_arg(),bias.into_array_arg(),indices.clone().into_array_arg(),weights.clone().into_array_arg(),
+                options.scale,options.groups,options.selected_groups,options.top_k,
+                options.group_top_two,has_bias,options.renormalize,logits.dtype.into());
+        } else {
+            let dim=RudaDim::new(logits.client.properties(),tokens);
+            kernels::grouped_routing::route::launch::<R>(&logits.client,
             calculate_ruda_count_elemwise(&logits.client,tokens,dim),dim,
             logits.clone().into_array_arg(),bias.into_array_arg(),indices.clone().into_array_arg(),weights.clone().into_array_arg(),
             options.scale,experts,options.groups,options.selected_groups,options.top_k,
             options.group_top_two,has_bias,options.renormalize,logits.dtype.into());
+        }
     }
     Ok(RoutingPlan{indices,weights,tokens,experts,top_k:options.top_k})
 }

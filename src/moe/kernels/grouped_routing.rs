@@ -1,7 +1,34 @@
-//! Parameterized sigmoid + grouped expert selection. This is a correctness-first
-//! row kernel, not a claim of optimized warp routing or FP8 model support.
 use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
+
+#[ruda(launch)]
+pub(crate) fn warp_route<F: Float>(logits: &Array<F>, bias: &Array<f32>, indices: &mut Array<u32>,
+    weights: &mut Array<F>, scale: f32, #[comptime] groups: usize,
+    #[comptime] selected_groups: usize, #[comptime] top_k: usize,
+    #[comptime] group_top_two: bool, #[comptime] has_bias: bool,
+    #[comptime] renormalize: bool, #[define(F)] _dtype: StorageType,
+) {
+    let token = RUDA_POS_X as usize * (RUDA_DIM as usize / 32) + UNIT_POS as usize / 32;
+    if token < logits.len() / (groups * 32) {
+        let mut probability = Array::<f32>::new(groups);
+        let mut corrected = Array::<f32>::new(groups);
+        let mut selected = Array::<u32>::new(top_k);
+        let mut selected_weights = Array::<f32>::new(top_k);
+        crate::warp_routing::probabilities(logits, bias, &mut probability, &mut corrected, token, groups, has_bias, true);
+        let denominator = crate::warp_routing::select(&probability, &corrected, &mut selected,
+            &mut selected_weights, groups, selected_groups, top_k, group_top_two);
+        let lane = UNIT_POS_PLANE as usize;
+        #[unroll]
+        for slot in 0usize..top_k {
+            if lane == slot {
+                let mut value = selected_weights[slot];
+                if comptime!(renormalize) { value /= denominator; }
+                indices[token * top_k + slot] = selected[slot];
+                weights[token * top_k + slot] = F::cast_from(value * scale);
+            }
+        }
+    }
+}
 
 #[ruda(launch)]
 pub(crate) fn route<F: Float>(logits:&Array<F>, bias:&Array<f32>, indices:&mut Array<u32>,

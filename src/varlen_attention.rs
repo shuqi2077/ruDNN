@@ -1,6 +1,6 @@
 use ruda_kernel::dsl as kernel_dsl;
 use ruda_kernel::dsl::prelude::*;
-use crate::dense_attention::keep;
+use crate::dense_attention::{keep,softmax_exp};
 
 #[ruda]
 fn document(schedule: &Array<i64>, token: usize, documents: u32) -> usize {
@@ -31,9 +31,12 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &Ar
     seed_low: u32, seed_high: u32, base_low: u32, base_high: u32,
     #[comptime] key_dim: usize, #[comptime] value_dim: usize, #[comptime] lanes: usize,
     #[comptime] causal: bool, #[comptime] lower_right: bool, #[comptime] dropout: bool,
-    #[comptime] capped: bool, #[define(F)] _dtype: StorageType) {
-    let row = RUDA_POS_X as usize;
-    let lane = UNIT_POS as usize;
+    #[comptime] capped: bool, #[comptime] warps_per_row: usize, #[define(F)] _dtype: StorageType) {
+    let row = RUDA_POS_X as usize * (RUDA_DIM as usize / (lanes * warps_per_row))
+        + UNIT_POS as usize / (lanes * warps_per_row);
+    let warp = (UNIT_POS as usize / lanes) % warps_per_row;
+    let lane = UNIT_POS as usize % lanes;
+    if row >= stats.len() / 2 { return; }
     let head = row % heads as usize;
     let token_q = row / heads as usize;
     let record = document(schedule, token_q, documents);
@@ -66,7 +69,11 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &Ar
     for j in 0usize..((value_dim + lanes - 1) / lanes) { acc[j] = 0.0; }
     let mut maximum = 0.0f32;
     let mut denominator = 0.0f32;
-    for token in 0usize..length_k {
+    let span = length_k / warps_per_row;
+    let extra = length_k % warps_per_row;
+    let begin = warp * span + usize::min(warp, extra);
+    let end = begin + span + usize::cast_from(warp < extra);
+    for token in begin..end {
         let cache_row = (start_k + token) * kv_heads as usize + kh;
         let mut partial = 0.0f32;
         #[unroll]
@@ -82,8 +89,8 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &Ar
             let mut next_max = score;
             if denominator != 0.0 { next_max = f32::max(maximum, score); }
             old_scale = 0.0;
-            if denominator != 0.0 { old_scale = (maximum - next_max).exp(); }
-            weight = (score - next_max).exp();
+            if denominator != 0.0 { old_scale = softmax_exp(maximum - next_max); }
+            weight = softmax_exp(score - next_max);
             denominator = fma(denominator, old_scale, weight);
             maximum = next_max;
         }
@@ -97,16 +104,20 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &Ar
             }
         }
     }
-    #[unroll]
-    for j in 0usize..((value_dim + lanes - 1) / lanes) {
-        let d = lane + j * lanes;
-        if d < value_dim {
-            let mut result = acc[j];
-            if denominator != 0.0 { result /= denominator; }
-            out[row * value_dim + d] = F::cast_from(result);
+    let merged = crate::attention_state::merge_warps(&mut acc, maximum, denominator,
+        warp, lane, value_dim, lanes, warps_per_row);
+    if warp == 0 {
+        #[unroll]
+        for j in 0usize..((value_dim + lanes - 1) / lanes) {
+            let d = lane + j * lanes;
+            if d < value_dim {
+                let mut result = acc[j];
+                if merged.1 != 0.0 { result /= merged.1; }
+                out[row * value_dim + d] = F::cast_from(result);
+            }
         }
+        if lane == 0 { stats[row * 2] = merged.0; stats[row * 2 + 1] = merged.1; }
     }
-    if lane == 0 { stats[row * 2] = maximum; stats[row * 2 + 1] = denominator; }
 }
 
 #[ruda(launch)]
@@ -118,8 +129,9 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &A
     #[comptime] key_dim: usize, #[comptime] value_dim: usize, #[comptime] lanes: usize,
     #[comptime] causal: bool, #[comptime] lower_right: bool, #[comptime] dropout: bool,
     #[comptime] capped: bool, #[define(F)] _dtype: StorageType) {
-    let row = RUDA_POS_X as usize;
-    let lane = UNIT_POS as usize;
+    let row = RUDA_POS_X as usize * (RUDA_DIM as usize / lanes) + UNIT_POS as usize / lanes;
+    let lane = UNIT_POS as usize % lanes;
+    if row >= stats.len() / 2 { return; }
     let head = row % heads as usize;
     let token_q = row / heads as usize;
     let record = document(schedule, token_q, documents);
@@ -182,7 +194,7 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &A
             }
             let allowed = visible(token, position, left, right, causal);
             let mut probability = 0.0f32;
-            if allowed && denominator != 0.0 { probability = (score - maximum).exp() / denominator; }
+            if allowed && denominator != 0.0 { probability = softmax_exp(score - maximum) / denominator; }
             let mut multiplier = 1.0f32;
             if comptime!(dropout) { multiplier = keep(token, seed_low, seed_high, rng_low, rng_high, p); }
             let dp = plane_sum(dp_local) * multiplier;
@@ -195,13 +207,17 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &A
                     let d = lane + j * lanes;
                     if d < key_dim {
                         qgrad[j] = fma(ds, f32::cast_from(k[cache_row * key_dim + d]), qgrad[j]);
-                        dk[cache_row * key_dim + d].fetch_add(ds * query[j]);
+                        let delta=ds * query[j];
+                        if delta!=0.0 {dk[cache_row * key_dim + d].fetch_add(delta);}
                     }
                 }
                 #[unroll]
                 for j in 0usize..((value_dim + lanes - 1) / lanes) {
                     let d = lane + j * lanes;
-                    if d < value_dim { dv[cache_row * value_dim + d].fetch_add(probability * multiplier * dy[j]); }
+                    if d < value_dim {
+                        let delta=probability * multiplier * dy[j];
+                        if delta!=0.0 {dv[cache_row * value_dim + d].fetch_add(delta);}
+                    }
                 }
             }
         }

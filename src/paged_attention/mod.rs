@@ -173,24 +173,25 @@ impl<R: Runtime> DevicePlan<R> {
         if !(lanes==32 || lanes==64) || self.host.queries>max.0 as usize || h>max.1 as usize {
             return Err(PagedAttentionError("paged kernel requires a full 32/64-lane plane and legal launch grid"));
         }
-        let (splits,target,output_dtype)=if let Some(workspace)=workspace {
+        let (splits,target,output_dtype,counters,fused_merge)=if let Some(workspace)=workspace {
             if !workspace.matches(q,self.host.queries,h,dv,workspace.splits()) {
                 return Err(PagedAttentionError("split workspace shape/device/queue mismatch"));
             }
             if workspace.splits()>max.2 as usize {
                 return Err(PagedAttentionError("split count exceeds launch grid Z limit"));
             }
-            (workspace.splits(),&workspace.tensor,DType::F32)
-        } else { (1,out,q.dtype) };
+            (workspace.splits(),&workspace.tensor,DType::F32,&workspace.counters,workspace.fused_merge())
+        } else { (1,out,q.dtype,&self.metadata,false) };
         if self.host.queries==0 { return Ok(()); }
         kernel::attention::launch::<R>(&q.client,
             RudaCount::Static(self.host.queries as u32,h as u32,splits as u32),RudaDim::new_1d(lanes),
             q.clone().into_array_arg(),k.clone().into_array_arg(),v.clone().into_array_arg(),
             qp.clone().into_array_arg(),kp.clone().into_array_arg(),self.metadata.clone().into_array_arg(),
-            target.clone().into_array_arg(),scale,self.host.queries as u32,self.host.sequences as u32,
+            target.clone().into_array_arg(),out.clone().into_array_arg(),counters.clone().into_array_arg(),
+            scale,self.host.queries as u32,self.host.sequences as u32,
             self.host.table_width as u32,self.host.page_size as u32,h as u32,kh as u32,
-            d,dv,p,lanes as usize,causal,position.is_some(),splits,q.dtype.into(),output_dtype.into());
-        if splits>1 {
+            d,dv,p,lanes as usize,causal,position.is_some(),splits,fused_merge,q.dtype.into(),output_dtype.into());
+        if splits>1 && !fused_merge {
             kernel::merge::launch::<R>(&q.client,
                 RudaCount::Static(self.host.queries as u32,h as u32,1),RudaDim::new_1d(lanes),
                 target.clone().into_array_arg(),out.clone().into_array_arg(),h as u32,

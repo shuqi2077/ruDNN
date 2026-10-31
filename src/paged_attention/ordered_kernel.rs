@@ -171,7 +171,7 @@ pub(super) fn history_backward<F: Float>(
                                         }
                                     }
                                     let score=plane_sum(dot)*scale;
-                                    let probability=(score-statistics[stat]).exp()/denominator;
+                                    let probability=crate::paged_attention::kernel::exp_fast(score-statistics[stat])/denominator;
                                     let mut ds=0.0f32;
                                     if comptime!(need_dk || need_dkp) {
                                         let mut partial=0.0f32;

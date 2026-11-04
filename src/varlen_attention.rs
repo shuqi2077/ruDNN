@@ -36,7 +36,7 @@ pub fn forward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &Ar
         + UNIT_POS as usize / (lanes * warps_per_row);
     let warp = (UNIT_POS as usize / lanes) % warps_per_row;
     let lane = UNIT_POS as usize % lanes;
-    if row >= stats.len() / 2 { return; }
+    if row >= stats.len() / 2 { terminate!(); }
     let head = row % heads as usize;
     let token_q = row / heads as usize;
     let record = document(schedule, token_q, documents);
@@ -131,7 +131,7 @@ pub fn backward<F: Float>(q: &Array<F>, k: &Array<F>, v: &Array<F>, schedule: &A
     #[comptime] capped: bool, #[define(F)] _dtype: StorageType) {
     let row = RUDA_POS_X as usize * (RUDA_DIM as usize / lanes) + UNIT_POS as usize / lanes;
     let lane = UNIT_POS as usize % lanes;
-    if row >= stats.len() / 2 { return; }
+    if row >= stats.len() / 2 { terminate!(); }
     let head = row % heads as usize;
     let token_q = row / heads as usize;
     let record = document(schedule, token_q, documents);
